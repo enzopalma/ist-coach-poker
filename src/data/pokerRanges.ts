@@ -415,7 +415,7 @@ export const PREFLOP_SCENARIOS: PreflopScenario[] = [
   {
     id: "UTG_RFI",
     category: "RFI",
-    title: "UTG (LJ) Open Raise - 100bb Cash 6-Max",
+    title: "UTG Open Raise",
     shortTitle: "UTG Open (RFI)",
     heroPos: "UTG",
     sizing: "2.5 bb",
@@ -436,7 +436,7 @@ export const PREFLOP_SCENARIOS: PreflopScenario[] = [
   {
     id: "MP_RFI",
     category: "RFI",
-    title: "MP (HJ) Open Raise - 100bb Cash 6-Max",
+    title: "MP Open Raise",
     shortTitle: "MP Open (RFI)",
     heroPos: "MP",
     sizing: "2.5 bb",
@@ -457,7 +457,7 @@ export const PREFLOP_SCENARIOS: PreflopScenario[] = [
   {
     id: "CO_RFI",
     category: "RFI",
-    title: "CO (Cutoff) Open Raise - 100bb Cash 6-Max",
+    title: "CO Open Raise",
     shortTitle: "CO Open (RFI)",
     heroPos: "CO",
     sizing: "2.5 bb",
@@ -478,7 +478,7 @@ export const PREFLOP_SCENARIOS: PreflopScenario[] = [
   {
     id: "BTN_RFI",
     category: "RFI",
-    title: "BTN (Button) Open Raise - 100bb Cash 6-Max",
+    title: "BTN Open Raise",
     shortTitle: "BTN Open (RFI)",
     heroPos: "BTN",
     sizing: "2.5 bb",
@@ -499,7 +499,7 @@ export const PREFLOP_SCENARIOS: PreflopScenario[] = [
   {
     id: "SB_RFI",
     category: "RFI",
-    title: "SB Open Raise vs BB - 100bb Cash 6-Max",
+    title: "SB Open Raise",
     shortTitle: "SB Open (RFI)",
     heroPos: "SB",
     villainPos: "BB",

@@ -20,7 +20,6 @@ import {
   Database,
   Sparkles,
   ChevronRight,
-  Spade,
 } from "lucide-react";
 
 type MainTab = "PREFLOP" | "POSTFLOP" | "PT4_LEAKS" | "STUDY_ROOM";
@@ -68,21 +67,33 @@ export default function HomePage() {
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           {/* Brand Logo */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center">
-              <Spade className="w-5 h-5 text-white fill-white" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-base font-semibold  text-white">
-                  IST COACH
-                </span>
-                <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-rose-500/20 text-rose-300 border border-slate-700">
-                  6-Max Cash 100bb
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400 hidden sm:block">
-                Tablas Preflop & Postflop · Analizador PokerTracker 4 · Sala de Estudio
-              </p>
+            {/* Logo: media luna de Estambul + pica de poker */}
+            <svg
+              width="40"
+              height="40"
+              viewBox="0 0 40 40"
+              aria-label="IST Coach"
+              className="shrink-0"
+            >
+              <defs>
+                <mask id="istMoonMask">
+                  <rect width="40" height="40" fill="white" />
+                  <circle cx="27" cy="16" r="13" fill="black" />
+                </mask>
+              </defs>
+              <circle cx="20" cy="20" r="16" fill="#cbd5e1" mask="url(#istMoonMask)" />
+              <g transform="translate(20.5 11) scale(0.62)">
+                <path
+                  d="M12 2C12 2 4 9 4 14a4 4 0 0 0 7 2.5L10 22h4l-1-5.5a4 4 0 0 0 7-2.5C20 9 12 2 12 2z"
+                  fill="#f43f5e"
+                />
+              </g>
+            </svg>
+            <div className="flex items-center gap-2.5">
+              <span className="text-base font-bold text-white">IST COACH</span>
+              <span className="px-2 py-0.5 text-[10px] font-medium rounded-full text-slate-400 border border-slate-700">
+                6-Max Cash 100bb
+              </span>
             </div>
           </div>
 
@@ -97,7 +108,7 @@ export default function HomePage() {
               }`}
             >
               <Grid className="w-4 h-4" />
-              <span>Tablas Preflop (13x13)</span>
+              <span>Tablas Preflop</span>
             </button>
 
             <button
@@ -168,7 +179,7 @@ export default function HomePage() {
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-800">
                 <div>
                   <span className="text-[11px] font-medium text-rose-400 block">
-                    Visor Interactivo Preflop · Cash 6-Max 100bb
+                    Visor Preflop · Cash 6-Max 100bb
                   </span>
                   <h1 className="text-lg font-semibold text-white mt-0.5">
                     {activeScenario.title}
