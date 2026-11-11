@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IST Coach Poker | Plataforma Web GTO, Analizador PT4 & Sala de Estudio</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          gridTemplateColumns: {
+            '13': 'repeat(13, minmax(0, 1fr))',
+          }
+        }
+      }
+    };
+  </script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    body {
+      background-color: #020617;
+      color: #f8fafc;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-950 text-slate-100 antialiased selection:bg-rose-500 selection:text-white">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useMemo } = React;
+
+    const RANKS = ["A", "K", "Q", "J", "T", "9", "8", "7", "6", "5", "4", "3", "2"];
+
+    function getHandLabel(r, c) {
+      const r1 = RANKS[r];
+      const r2 = RANKS[c];
+      if (r === c) return `${r1}${r2}`;
+      if (r < c) return `${r1}${r2}s`;
+      return `${r2}${r1}o`;
+    }
+
+    function getHandCombos(hand) {
+      if (hand.length === 2) return 6;
+      if (hand.endsWith("s")) return 4;
+      return 12;
+    }
+
+    function getAll169Hands() {
+      const list = [];
+      for (let r = 0; r < 13; r++) {
+        for (let c = 0; c < 13; c++) {
+          list.push(getHandLabel(r, c));
+        }
+      }
+      return list;
+    }
+
+    function buildRangeMap(spec) {
+      const map = {};
+      for (const h of getAll169Hands()) {
+        map[h] = { raise: 0, call: 0, fold: 100 };
+      }
+      if (spec.pureRaise) {
+        for (const h of spec.pureRaise) map[h] = { raise: 100, call: 0, fold: 0 };
+      }
+      if (spec.pureCall) {
+        for (const h of spec.pureCall) map[h] = { raise: 0, call: 100, fold: 0 };
+      }
+      if (spec.mixedRaise) {
+        for (const [h, rPct] of Object.entries(spec.mixedRaise)) {
+          map[h] = { raise: rPct, call: 0, fold: 100 - rPct };
+        }
+      }
+      if (spec.mixedCall) {
+        for (const [h, v] of Object.entries(spec.mixedCall)) {
+          map[h] = { raise: v.raise, call: v.call, fold: Math.max(0, 100 - v.raise - v.call) };
+        }
+      }
+      return map;
+    }
+
+    function computeSummary(freqs) {
+      let rC = 0, cC = 0, fC = 0;
+      for (const [h, f] of Object.entries(freqs)) {
+        const cb = getHandCombos(h);
+        rC += (cb * f.raise) / 100;
+        cC += (cb * f.call) / 100;
+        fC += (cb * f.fold) / 100;
+      }
+      return {
+        raisePct: Number(((rC / 1326) * 100).toFixed(1)),
+        callPct: Number(((cC / 1326) * 100).toFixed(1)),
+        foldPct: Number(((fC / 1326) * 100).toFixed(1)),
+        totalCombosPlayed: Math.round(rC + cC),
+      };
+    }
+
+    function buildHeroDeviation(gto, mode) {
+      const hero = {};
+      const suitedWheels = ["A5s", "A4s", "A3s", "A2s", "K7s", "K6s", "87s", "76s", "65s", "54s"];
+      const offsuitBroadways = ["KJo", "KTo", "QJo", "QTo", "JTo", "A9o", "A8o"];
+      const smallPairs = ["55", "44", "33", "22"];
+
+      for (const [hand, f] of Object.entries(gto)) {
+        let { raise, call, fold } = f;
+        if (mode === "RFI") {
+          if (suitedWheels.includes(hand) && raise > 0 && raise < 100) raise = Math.max(0, raise - 30);
+          else if (offsuitBroadways.includes(hand) && raise > 0 && raise < 80) raise = Math.min(100, raise + 25);
+          call = 0;
+          fold = 100 - raise;
+        } else if (mode === "VS_OPEN_IP") {
+          if (suitedWheels.includes(hand) && raise > 0) {
+            const shift = Math.min(raise, 45);
+            raise -= shift;
+            call += Math.round(shift * 0.6);
+          } else if (offsuitBroadways.includes(hand)) {
+            call = Math.min(100 - raise, call + 25);
+          }
+          fold = Math.max(0, 100 - raise - call);
+        } else if (mode === "VS_OPEN_BB") {
+          if (suitedWheels.includes(hand) && raise > 0) {
+            const shift = Math.min(raise, 50);
+            raise -= shift;
+            call += shift;
+          } else if (smallPairs.includes(hand) && call > 0) {
+            call = Math.max(0, call - 25);
+          }
+          fold = Math.max(0, 100 - raise - call);
+        } else if (mode === "VS_3BET") {
+          if (suitedWheels.includes(hand) && raise > 0) {
+            const shift = Math.min(raise, 55);
+            raise -= shift;
+            fold += shift;
+          } else if (smallPairs.includes(hand) && call > 0) {
+            call = Math.max(0, call - 25);
+          }
+          fold = Math.max(0, 100 - raise - call);
+        }
+        hero[hand] = { raise: Math.round(raise), call: Math.round(call), fold: Math.max(0, 100 - Math.round(raise) - Math.round(call)) };
+      }
+      return hero;
+    }
+
+    const utgRfiMap = buildRangeMap({
+      pureRaise: ["AA","KK","QQ","JJ","TT","99","88","77","AKs","AQs","AJs","ATs","A9s","A8s","A5s","A4s","KQs","KJs","KTs","K9s","QJs","QTs","JTs","T9s","AKo","AQo","AJo","KQo"],
+      mixedRaise: { "66":75,"55":50,"44":25,"A7s":65,"A6s":45,"A3s":75,"A2s":50,"Q9s":60,"J9s":65,"98s":70,"87s":55,"76s":45,"65s":35,"ATo":70,"KJo":55 }
+    });
+
+    const mpRfiMap = buildRangeMap({
+      pureRaise: ["AA","KK","QQ","JJ","TT","99","88","77","66","AKs","AQs","AJs","ATs","A9s","A8s","A7s","A6s","A5s","A4s","A3s","A2s","KQs","KJs","KTs","K9s","QJs","QTs","Q9s","JTs","J9s","T9s","98s","87s","AKo","AQo","AJo","ATo","KQo","KJo"],
+      mixedRaise: { "55":80,"44":55,"33":35,"22":20,"K8s":65,"K7s":45,"T8s":50,"76s":75,"65s":65,"54s":45,"QJo":65,"A9o":40 }
+    });
+
+    const coRfiMap = buildRangeMap({
+      pureRaise: ["AA","KK","QQ","JJ","TT","99","88","77","66","55","44","AKs","AQs","AJs","ATs","A9s","A8s","A7s","A6s","A5s","A4s","A3s","A2s","KQs","KJs","KTs","K9s","K8s","K7s","QJs","QTs","Q9s","Q8s","JTs","J9s","J8s","T9s","T8s","98s","87s","76s","65s","54s","AKo","AQo","AJo","ATo","A9o","KQo","KJo","KTo","QJo","QTo","JTo"],
+      mixedRaise: { "33":75,"22":60,"K6s":70,"K5s":55,"Q7s":45,"97s":65,"86s":50,"A8o":60,"A5o":45,"K9o":35 }
+    });
+
+    const btnRfiMap = buildRangeMap({
+      pureRaise: ["AA","KK","QQ","JJ","TT","99","88","77","66","55","44","33","22","AKs","AQs","AJs","ATs","A9s","A8s","A7s","A6s","A5s","A4s","A3s","A2s","KQs","KJs","KTs","K9s","K8s","K7s","K6s","K5s","K4s","K3s","K2s","QJs","QTs","Q9s","Q8s","Q7s","Q6s","Q5s","JTs","J9s","J8s","J7s","T9s","T8s","T7s","98s","97s","96s","87s","86s","76s","75s","65s","64s","54s","53s","43s","AKo","AQo","AJo","ATo","A9o","A8o","A7o","A6o","A5o","A4o","A3o","KQo","KJo","KTo","K9o","K8o","QJo","QTo","Q9o","JTo","J9o","T9o","98o"],
+      mixedRaise: { "Q4s":75,"Q3s":60,"Q2s":45,"J6s":65,"J5s":50,"T6s":55,"85s":50,"74s":45,"A2o":65,"K7o":40,"Q8o":45,"J8o":45,"T8o":55,"87o":60 }
+    });
+
+    const sbRfiMap = buildRangeMap({
+      pureRaise: ["AA","KK","QQ","JJ","TT","99","88","77","66","55","44","33","22","AKs","AQs","AJs","ATs","A9s","A8s","A7s","A6s","A5s","A4s","A3s","A2s","KQs","KJs","KTs","K9s","K8s","K7s","K6s","K5s","K4s","QJs","QTs","Q9s","Q8s","Q7s","Q6s","JTs","J9s","J8s","J7s","T9s","T8s","T7s","98s","97s","87s","86s","76s","75s","65s","64s","54s","53s","AKo","AQo","AJo","ATo","A9o","A8o","A7o","A6o","A5o","A4o","KQo","KJo","KTo","K9o","QJo","QTo","Q9o","JTo","J9o","T9o"],
+      mixedRaise: { "K3s":70,"K2s":60,"Q5s":75,"Q4s":60,"J6s":50,"96s":65,"43s":60,"A3o":65,"A2o":50,"K8o":55,"98o":65 }
+    });
+
+    const btnVsCoMap = buildRangeMap({
+      pureRaise: ["AA","KK","QQ","JJ","AKs","AQs","AJs","KQs","AKo","AQo"],
+      pureCall: ["99","88","77","66","QTs","JTs","T9s"],
+      mixedCall: {
+        "TT":{raise:55,call:45},"55":{raise:0,call:75},"44":{raise:0,call:55},
+        "ATs":{raise:60,call:40},"A9s":{raise:45,call:55},"A8s":{raise:35,call:50},
+        "A5s":{raise:85,call:15},"A4s":{raise:80,call:20},"A3s":{raise:55,call:30},
+        "KJs":{raise:65,call:35},"KTs":{raise:45,call:55},"K9s":{raise:35,call:45},
+        "QJs":{raise:55,call:45},"Q9s":{raise:30,call:40},"J9s":{raise:25,call:55},
+        "98s":{raise:30,call:60},"87s":{raise:35,call:55},"76s":{raise:35,call:50},
+        "65s":{raise:40,call:40},"54s":{raise:45,call:25},"AJo":{raise:75,call:15},
+        "ATo":{raise:55,call:0},"KQo":{raise:70,call:20},"KJo":{raise:40,call:0}
+      }
+    });
+
+    const sbVsBtnMap = buildRangeMap({
+      pureRaise: ["AA","KK","QQ","JJ","TT","99","88","AKs","AQs","AJs","ATs","A9s","A5s","A4s","KQs","KJs","KTs","QJs","QTs","JTs","AKo","AQo","AJo","KQo"],
+      mixedRaise: { "77":85,"66":75,"55":60,"A8s":80,"A7s":70,"A6s":65,"A3s":75,"A2s":60,"K9s":80,"Q9s":75,"J9s":75,"T9s":85,"98s":75,"87s":70,"76s":65,"65s":65,"54s":55,"ATo":80,"KJo":75,"QJo":55 }
+    });
+
+    const bbVsBtnMap = buildRangeMap({
+      pureRaise: ["AA","KK","QQ","JJ","TT","AKs","AQs","AJs","KQs","AKo","AQo"],
+      pureCall: ["88","77","66","55","44","33","22","A9s","A8s","A7s","A6s","A3s","A2s","KTs","K9s","K8s","K7s","K6s","K5s","K4s","K3s","K2s","QTs","Q9s","Q8s","Q7s","Q6s","J9s","J8s","J7s","T8s","T7s","97s","86s","75s","64s","A9o","A8o","A7o","A6o","A5o","A4o","KJo","KTo","K9o","QJo","QTo","Q9o","JTo","J9o","T9o"],
+      mixedCall: {
+        "99":{raise:65,call:35},"ATs":{raise:70,call:30},"A5s":{raise:80,call:20},"A4s":{raise:75,call:25},
+        "KJs":{raise:75,call:25},"QJs":{raise:70,call:30},"JTs":{raise:65,call:35},"T9s":{raise:60,call:40},
+        "98s":{raise:55,call:45},"87s":{raise:55,call:45},"76s":{raise:50,call:50},"65s":{raise:50,call:50},
+        "54s":{raise:45,call:55},"Q5s":{raise:25,call:75},"Q4s":{raise:20,call:80},"J6s":{raise:20,call:70},
+        "AJo":{raise:75,call:25},"ATo":{raise:55,call:45},"KQo":{raise:75,call:25}
+      }
+    });
+
+    const btnVsBb3BetMap = buildRangeMap({
+      pureRaise: ["AA","KK","QQ","AKs","AKo"],
+      pureCall: ["TT","99","88","77","66","AQs","AJs","ATs","A9s","A8s","KQs","KJs","KTs","QJs","QTs","JTs","T9s","98s","87s","76s"],
+      mixedCall: {
+        "JJ":{raise:55,call:45},"55":{raise:0,call:75},"44":{raise:0,call:55},
+        "A5s":{raise:75,call:25},"A4s":{raise:70,call:30},"A3s":{raise:45,call:35},
+        "K9s":{raise:25,call:60},"Q9s":{raise:20,call:55},"65s":{raise:30,call:60},"54s":{raise:35,call:50},
+        "AQo":{raise:45,call:55},"AJo":{raise:35,call:30},"ATo":{raise:30,call:0},"KQo":{raise:40,call:45}
+      }
+    });
+
+    const PREFLOP_SCENARIOS = [
+      {
+        id: "UTG_RFI", category: "RFI", title: "UTG (LJ) Open Raise - 100bb Cash 6-Max", shortTitle: "UTG Open (RFI)",
+        heroPos: "UTG", sizing: "2.5 bb", gtoSummary: computeSummary(utgRfiMap),
+        coachNotes: [
+          "Desde UTG quedan 5 jugadores por hablar. Tu rango debe ser compacto y centrado en cartas altas suited y pares medios-altos.",
+          "Los ases suited bajos (A5s-A2s) son mejores que A7o-A9o porque bloquean AA/AK y tienen jugabilidad hacia las nuts.",
+          "Evita abrir offsuit dominados como KTo o QJo desde UTG."
+        ],
+        frequencies: utgRfiMap, pt4HeroFrequencies: buildHeroDeviation(utgRfiMap, "RFI")
+      },
+      {
+        id: "MP_RFI", category: "RFI", title: "MP (HJ) Open Raise - 100bb Cash 6-Max", shortTitle: "MP Open (RFI)",
+        heroPos: "MP", sizing: "2.5 bb", gtoSummary: computeSummary(mpRfiMap),
+        coachNotes: [
+          "En Hijack (MP) ya abrimos todos los Ases suited (A2s+) al 100% y ampliamos broadways offsuit (ATo, KJo).",
+          "Los conectores suited medios (98s-65s) entran con alta frecuencia para cubrir boards medios y bajos."
+        ],
+        frequencies: mpRfiMap, pt4HeroFrequencies: buildHeroDeviation(mpRfiMap, "RFI")
+      },
+      {
+        id: "CO_RFI", category: "RFI", title: "CO (Cutoff) Open Raise - 100bb Cash 6-Max", shortTitle: "CO Open (RFI)",
+        heroPos: "CO", sizing: "2.5 bb", gtoSummary: computeSummary(coRfiMap),
+        coachNotes: [
+          "El Cutoff roba casi el 30% de la baraja. Solo el BTN tiene posición sobre ti postflop.",
+          "Todas las broadways offsuit (hasta JTo) y todos los conectores suited (54s+) son aperturas rentables."
+        ],
+        frequencies: coRfiMap, pt4HeroFrequencies: buildHeroDeviation(coRfiMap, "RFI")
+      },
+      {
+        id: "BTN_RFI", category: "RFI", title: "BTN (Button) Open Raise - 100bb Cash 6-Max", shortTitle: "BTN Open (RFI)",
+        heroPos: "BTN", sizing: "2.5 bb", gtoSummary: computeSummary(btnRfiMap),
+        coachNotes: [
+          "El Button es la posición más rentable del póker: hablarás último en Flop, Turn y River.",
+          "En GTO se abre ~46% de manos: todos los pares (22+), todos los Axs, todos los Kxs y A3o+.",
+          "En tu PT4 detectamos que abrir menos del 40% en BTN desperdicia ciegas gratis constantemente."
+        ],
+        frequencies: btnRfiMap, pt4HeroFrequencies: buildHeroDeviation(btnRfiMap, "RFI")
+      },
+      {
+        id: "SB_RFI", category: "RFI", title: "SB Open Raise vs BB - 100bb Cash 6-Max", shortTitle: "SB Open (RFI)",
+        heroPos: "SB", villainPos: "BB", sizing: "3.0 bb", gtoSummary: computeSummary(sbRfiMap),
+        coachNotes: [
+          "En guerra de ciegas (SB vs BB) estarás fuera de posición todo el postflop: usa un tamaño mayor (3.0bb) para maximizar fold equity.",
+          "Abre ~42% de las manos contra una BB estándar."
+        ],
+        frequencies: sbRfiMap, pt4HeroFrequencies: buildHeroDeviation(sbRfiMap, "RFI")
+      },
+      {
+        id: "BTN_VS_CO", category: "VS_OPEN", title: "BTN vs CO Open (3-Bet / Call / Fold)", shortTitle: "BTN vs CO Open",
+        heroPos: "BTN", villainPos: "CO", sizing: "3-Bet a 7.5 bb", gtoSummary: computeSummary(btnVsCoMap),
+        coachNotes: [
+          "En BTN contra apertura de CO divides tu rango entre 3-Bet a 7.5bb (~11.5%) y Call en posición (~10%).",
+          "Tus 3-bets de semifarol se construyen con A5s-A3s, K9s, Q9s y conectores suited."
+        ],
+        frequencies: btnVsCoMap, pt4HeroFrequencies: buildHeroDeviation(btnVsCoMap, "VS_OPEN_IP")
+      },
+      {
+        id: "SB_VS_BTN", category: "VS_OPEN", title: "SB vs BTN Open (Estrategia 3-Bet o Fold)", shortTitle: "SB vs BTN Open",
+        heroPos: "SB", villainPos: "BTN", sizing: "3-Bet a 11.0 bb", gtoSummary: computeSummary(sbVsBtnMap),
+        coachNotes: [
+          "En Cash Games con rake, la Small Blind juega '3-Bet o Fold' (0% Call) contra aperturas del BTN.",
+          "Hacer Cold Call en SB es el leak #1 en bases de datos de PT4: pagas rake, juegas OOP sin iniciativa y permites squeezes de la BB."
+        ],
+        frequencies: sbVsBtnMap, pt4HeroFrequencies: buildHeroDeviation(sbVsBtnMap, "VS_OPEN_IP")
+      },
+      {
+        id: "BB_VS_BTN", category: "VS_OPEN", title: "BB Defensa vs BTN Open (3-Bet / Call / Fold)", shortTitle: "BB vs BTN Open",
+        heroPos: "BB", villainPos: "BTN", sizing: "3-Bet a 11.0 bb / Call", gtoSummary: computeSummary(bbVsBtnMap),
+        coachNotes: [
+          "La BB cierra la acción con excelentes pot odds contra 2.5bb: debes defender ~47% de manos (~13.5% 3-Bet y ~33.5% Call).",
+          "No sobre-foldees manos suited como Q7s, J7s, 97s o conectores bajos."
+        ],
+        frequencies: bbVsBtnMap, pt4HeroFrequencies: buildHeroDeviation(bbVsBtnMap, "VS_OPEN_BB")
+      },
+      {
+        id: "BTN_VS_BB_3BET", category: "VS_3BET", title: "BTN vs BB 3-Bet (4-Bet / Call / Fold IP)", shortTitle: "BTN vs BB 3-Bet",
+        heroPos: "BTN", villainPos: "BB", sizing: "4-Bet a 23.5 bb / Call", gtoSummary: computeSummary(btnVsBb3BetMap),
+        coachNotes: [
+          "Contra el 3-Bet de la BB a 11bb, tienes posición todo el postflop y defiendes ~57% de tu rango de apertura.",
+          "Usa A5s/A4s/ATo/KQo como 4-bet bluffs y paga en posición con 66-JJ, AQs-A8s, KQs-KTs y conectores suited (T9s-65s)."
+        ],
+        frequencies: btnVsBb3BetMap, pt4HeroFrequencies: buildHeroDeviation(btnVsBb3BetMap, "VS_3BET")
+      }
+    ];
+
+    const POSTFLOP_SPOTS = [
+      {
+        id: "BTN_VS_BB_SRP_AK7R",
+        spotName: "BTN vs BB (Board Seco Broadway)",
+        positions: "BTN (Hero IP) vs BB (Villain OOP)",
+        boardLabel: "A♠ K♦ 7♣",
+        cards: [{r:"A",s:"♠",c:"bg-slate-800 border-slate-500 text-white"},{r:"K",s:"♦",c:"bg-sky-950 border-sky-500 text-sky-400"},{r:"7",s:"♣",c:"bg-emerald-950 border-emerald-500 text-emerald-400"}],
+        spr: 13.2, potBb: 5.5,
+        pt4Warning: "En PT4 muchos jugadores chequean QQ-88 o apuestan 66% aquí. En A-K-7 rainbow la estrategia óptima es Range Bet 33% con casi todo el rango.",
+        streets: {
+          FLOP: {
+            title: "Flop C-Bet IP en A♠ K♦ 7♣ (Range Bet 33%)",
+            freqs: { check: 6, bet33: 82, bet75: 12, overbet125: 0 },
+            summary: "BTN conserva todos los AA, KK, AK, AQ que la BB 3-betea preflop. Al tener ventaja masiva de rango y de nuts en un board seco, apostamos 33% del bote (1.8 bb) con casi el 100% de nuestras manos.",
+            categories: [
+              { name: "Nuts, Sets y Dos Pares (AA, KK, 77, AK, A7s)", share: 11, check: 0, b33: 80, b75: 20, ob: 0, note: "Construye el bote con 33% sin revelar fuerza para preparar Overbet en el Turn." },
+              { name: "Top Pair (AQ, AJ, AT, A9s-A2s)", share: 22, check: 4, b33: 86, b75: 10, ob: 0, note: "Valor directo y protección; obliga a la BB a pagar con Kx, pares bajos y gutshots." },
+              { name: "Second Pair y Pares Medios (QQ-88, KQ, KJ)", share: 24, check: 12, b33: 88, b75: 0, ob: 0, note: "Niega equidad a overcards y gutshots del rival a bajo precio." },
+              { name: "Gutshots y Backdoors (QJs, QTs, JTs, 98s)", share: 25, check: 5, b33: 80, b75: 15, ob: 0, note: "Ideales para C-betear 33% y disparar Overbet 125% en el Turn." },
+              { name: "Aire / Pares Bajos (66-22, 54s)", share: 18, check: 8, b33: 92, b75: 0, ob: 0, note: "Rentabiliza el alto fold inmediato de la BB frente a 1/3 del bote." }
+            ]
+          },
+          TURN: {
+            title: "Turn 2nd Barrel Polarizado (Overbet 125% vs Check Back)",
+            freqs: { check: 48, bet33: 5, bet75: 17, overbet125: 30 },
+            summary: "Cuando la BB paga en el Flop, su rango está capado a Ax débiles, Kx y pares medios. En el Turn polarizamos: hacemos Check Back con valor medio (Ax bajos, KQ, QQ-88) y disparamos Overbet 125% con AQ+, dobles parejas, sets y proyectos broadway (QJ, JT).",
+            categories: [
+              { name: "Valor Fuerte (AA, KK, 77, AK, AQ)", share: 18, check: 5, b33: 0, b75: 25, ob: 70, note: "Overbet 125% para preparar el All-In geométrico en el River." },
+              { name: "Top Pair Medio/Débil (AJ, AT, A8s-A2s)", share: 20, check: 65, b33: 10, b75: 20, ob: 5, note: "Controla el bote en Turn para cobrar en el River o atrapar faroles." },
+              { name: "Showdown Value (KQ, KJ, QQ-88)", share: 28, check: 95, b33: 5, b75: 0, ob: 0, note: "Check Back puro en Turn para llegar a Showdown barato." },
+              { name: "Semifaroles Fuertes (QJs, QTs, JTs)", share: 34, check: 25, b33: 0, b75: 25, ob: 50, note: "Balancean tus Overbets con outs limpios a la escalera nut." }
+            ]
+          },
+          RIVER: {
+            title: "River Triple Barrel Polarizado",
+            freqs: { check: 42, bet33: 8, bet75: 25, overbet125: 25 },
+            summary: "En el River tu rango tras 2 barrels está polarizado entre manos que vencen a Top Pair (AK+, sets, escaleras) y proyectos fallidos con bloqueadores (QJ, QT, JT).",
+            categories: [
+              { name: "Nuts, Sets y Dos Pares (AA, KK, 77, AK)", share: 45, check: 0, b33: 0, b75: 35, ob: 65, note: "Value bet grande o All-in contra los Ax del rival." },
+              { name: "Bluffs con Bloqueadores (QJo, QTs, JTs fallidos)", share: 55, check: 40, b33: 0, b75: 30, ob: 30, note: "Bloquean AQ/AJ/KQ y fuerzan el fold de Ax débiles en el River." }
+            ]
+          }
+        }
+      },
+      {
+        id: "BTN_VS_BB_SRP_JT8S",
+        spotName: "BTN vs BB (Board Dinámico Conectado)",
+        positions: "BTN (Hero IP) vs BB (Villain OOP)",
+        boardLabel: "J♠ T♠ 8♦",
+        cards: [{r:"J",s:"♠",c:"bg-slate-800 border-slate-500 text-white"},{r:"T",s:"♠",c:"bg-slate-800 border-slate-500 text-white"},{r:"8",s:"♦",c:"bg-sky-950 border-sky-500 text-sky-400"}],
+        spr: 13.2, potBb: 5.5,
+        pt4Warning: "Leak grave en PT4: hacer C-Bet 33% automático en J-T-8. La BB tiene todas las escaleras (Q9, 97, 76) y dobles parejas, y te hará Check-Raise agresivamente.",
+        streets: {
+          FLOP: {
+            title: "Flop C-Bet Selectivo y Grande (66-75%) en J♠ T♠ 8♦",
+            freqs: { check: 54, bet33: 8, bet75: 38, overbet125: 0 },
+            summary: "En boards medios muy coordinados la BB conecta fuertemente. Baja tu frecuencia de C-Bet a ~46% y usa un tamaño grande (66%-75%) con tus manos fuertes y mejores proyectos.",
+            categories: [
+              { name: "Escaleras, Sets y Dos Pares (Q9s, 97s, JJ, TT, 88, JTs)", share: 15, check: 10, b33: 5, b75: 85, ob: 0, note: "Apuesta 75% de inmediato para construir el bote antes de que caigan cartas que corten la acción." },
+              { name: "Overpairs y Top Pair (AA-QQ, AJ, KJ)", share: 26, check: 45, b33: 10, b75: 45, ob: 0, note: "Apuesta más con QQ (bloquea Q9) y AJ; chequea algunos AA/KK sin pica para proteger tu rango de Check." },
+              { name: "Combo Draws, Flush Draws y OESD (AsXs, KQo, 98s)", share: 25, check: 35, b33: 5, b75: 60, ob: 0, note: "Presiona con 75% con proyectos de color nut y KQ." },
+              { name: "Pares Bajos y Aire sin Equidad (77-22, A2o-A7o)", share: 34, check: 92, b33: 0, b75: 8, ob: 0, note: "Check Back disciplinado: evita quemar bb/100 contra el Check-Raise de la BB." }
+            ]
+          },
+          TURN: {
+            title: "Turn en Board J-T-8: Adaptación según Carta",
+            freqs: { check: 45, bet33: 10, bet75: 40, overbet125: 5 },
+            summary: "En turns blancos sigue apostando 75% con sets, escaleras y colores; si se completa la 3ra pica o 4-straight en mesa, controla el bote con dos pares/sets.",
+            categories: [
+              { name: "Escaleras Altas y Colores Completados", share: 45, check: 5, b33: 10, b75: 75, ob: 10, note: "Continúa metiendo presión con 75% del bote." },
+              { name: "Overpairs y Dos Pares Vulnerables", share: 55, check: 65, b33: 15, b75: 20, ob: 0, note: "Controla el tamaño del bote y evalúa en el River." }
+            ]
+          },
+          RIVER: {
+            title: "River en Board Coordinado: Bloqueadores de Escalera/Color",
+            freqs: { check: 52, bet33: 12, bet75: 36, overbet125: 0 },
+            summary: "En el River farolea únicamente cuando tengas bloqueadores clave (como una Reina que bloquea Q9 o el A♠ en boards con 3 picas).",
+            categories: [
+              { name: "Nuts (Escaleras, Colores, Full House)", share: 50, check: 0, b33: 5, b75: 95, ob: 0, note: "Apuesta 75% por valor claro." },
+              { name: "Faroles con Bloqueador (Qxo, A♠Xo)", share: 50, check: 55, b33: 0, b75: 45, ob: 0, note: "Ejecuta el bluff solo con bloqueadores de las nuts del rival." }
+            ]
+          }
+        }
+      },
+      {
+        id: "BTN_VS_CO_3BET_Q84",
+        spotName: "3-Bet Pot IP (BTN vs CO)",
+        positions: "BTN (Hero 3-Bettor IP) vs CO (Caller OOP)",
+        boardLabel: "Q♥ 8♥ 4♠",
+        cards: [{r:"Q",s:"♥",c:"bg-rose-950 border-rose-500 text-rose-400"},{r:"8",s:"♥",c:"bg-rose-950 border-rose-500 text-rose-400"},{r:"4",s:"♠",c:"bg-slate-800 border-slate-500 text-white"}],
+        spr: 4.1, potBb: 16.5,
+        pt4Warning: "Con SPR ~4 en botes 3-beteados no necesitas apostar 75% en el Flop: una apuesta de 33% (5.4 bb) ya prepara el stack para meter todo el dinero en Turn y River.",
+        streets: {
+          FLOP: {
+            title: "Flop C-Bet 33% en 3-Bet Pot IP (Q♥ 8♥ 4♠)",
+            freqs: { check: 18, bet33: 72, bet75: 10, overbet125: 0 },
+            summary: "Con SPR 4.1 y ventaja de Overpairs/Top Pair fuerte (AA, KK, QQ, AQ, KQ), apostamos 33% del bote para poner en aprietos a JJ-99 y AJs/ATs del CO.",
+            categories: [
+              { name: "Overpairs, Sets y Top Pair (AA-QQ, 88, AQ, KQ)", share: 45, check: 6, b33: 82, b75: 12, ob: 0, note: "Apuesta 33% para construir el bote rumbo al stack-off en 3 calles." },
+              { name: "Flush Draws y Backdoor Nut FD (A♥K♥, A♥J♥, AK con ♥)", share: 55, check: 22, b33: 70, b75: 8, ob: 0, note: "Presión constante con alta equidad a bajo costo." }
+            ]
+          },
+          TURN: {
+            title: "Turn en 3-Bet Pot: Bet 60% Preparando All-In",
+            freqs: { check: 46, bet33: 12, bet75: 42, overbet125: 0 },
+            summary: "Una apuesta de ~60% del bote en el Turn deja un All-In limpio de < 0.8x el bote para el River.",
+            categories: [
+              { name: "Valor de Stack-Off (AA-QQ, AQ, KQ) y Proyectos ♥", share: 60, check: 12, b33: 15, b75: 73, ob: 0, note: "Apuesta ~60% para ir All-In en el River." },
+              { name: "Showdown Medio (JJ-99, QTs)", share: 40, check: 90, b33: 10, b75: 0, ob: 0, note: "Check Back para controlar el bote y realizar equidad gratis." }
+            ]
+          },
+          RIVER: {
+            title: "River All-In Geométrico en 3-Bet Pot",
+            freqs: { check: 48, bet33: 0, bet75: 52, overbet125: 0 },
+            summary: "Con menos de medio bote detrás, vamos All-In con AQ+, sets y nuestros proyectos fallidos con bloqueador del As de corazones (A♥K, A♥J).",
+            categories: [
+              { name: "Valor All-In (AA, KK, QQ, 88, AQ)", share: 65, check: 5, b33: 0, b75: 95, ob: 0, note: "Shove directo por valor." },
+              { name: "Bluff All-In con Bloqueador (A♥K, A♥J fallidos)", share: 35, check: 35, b33: 0, b75: 65, ob: 0, note: "Bloquean AA y AQ del rival." }
+            ]
+          }
+        }
+      }
+    ];
+
+    const INITIAL_PT4_DB = {
+      source: "DEMO_CLOUD",
+      playerName: "Hero_IST",
+      databaseName: "Sincronización PT4 Cloud (NL50 6-Max)",
+      totalHands: 62450,
+      netWonUsd: 1311.45,
+      bb100: 4.2,
+      evBb100: 4.8,
+      globalVpip: 24.6,
+      globalPfr: 19.2,
+      global3Bet: 7.8,
+      globalCbetFlop: 74.5,
+      globalCbetTurn: 43.2,
+      globalWwsf: 44.1,
+      positions: {
+        UTG: { pos: "UTG", hands: 10120, vpip: 16.8, pfr: 16.4, rfi: 16.4, threeBet: 0, coldCall: 0.4, cbetFlop: 67.0, bb100: 13.8, gtoVpip: "15.5-18.5%", gtoBb100: 14.5, scenarioId: "UTG_RFI" },
+        MP:  { pos: "MP",  hands: 10340, vpip: 20.9, pfr: 19.8, rfi: 20.8, threeBet: 5.4, coldCall: 1.8, cbetFlop: 69.5, bb100: 16.9, gtoVpip: "19.5-23.0%", gtoBb100: 18.0, scenarioId: "MP_RFI" },
+        CO:  { pos: "CO",  hands: 10490, vpip: 26.8, pfr: 24.1, rfi: 27.2, threeBet: 7.6, coldCall: 3.9, cbetFlop: 73.2, bb100: 21.8, gtoVpip: "26.0-31.0%", gtoBb100: 24.5, scenarioId: "CO_RFI" },
+        BTN: { pos: "BTN", hands: 10580, vpip: 39.4, pfr: 30.8, rfi: 39.2, threeBet: 8.9, coldCall: 11.4, cbetFlop: 79.8, bb100: 29.4, gtoVpip: "41.0-48.0%", gtoBb100: 36.0, scenarioId: "BTN_RFI" },
+        SB:  { pos: "SB",  hands: 10460, vpip: 27.5, pfr: 19.6, rfi: 34.8, threeBet: 8.4, coldCall: 7.9, cbetFlop: 74.0, bb100: -21.6, gtoVpip: "26.0-33.0%", gtoBb100: -14.0, scenarioId: "SB_VS_BTN" },
+        BB:  { pos: "BB",  hands: 10460, vpip: 26.2, pfr: 6.9,  rfi: 0,    threeBet: 6.9, coldCall: 19.3, cbetFlop: 62.0, bb100: -35.1, gtoVpip: "34.0-42.0%", gtoBb100: -27.5, scenarioId: "BB_VS_BTN" }
+      }
+    };
+
+    const STUDY_DRILLS = [
+      {
+        id: 1, mode: "PREFLOP", title: "Defensa de SB vs BTN Open (3-Bet o Fold)",
+        situation: "BTN abre a 2.5 bb (100bb efectivos). Estás en Small Blind (SB) con A♥ 5♥.",
+        heroPos: "SB", villainPos: "BTN", potBb: 4.0, hand: "A5s",
+        heroCards: [{r:"A",s:"♥",c:"bg-rose-950 border-rose-500 text-rose-400"},{r:"5",s:"♥",c:"bg-rose-950 border-rose-500 text-rose-400"}],
+        board: [],
+        options: [
+          { id: "FOLD", label: "Fold", ev: "0.00 bb EV", freq: 0 },
+          { id: "CALL", label: "Call 2.5 bb", ev: "-0.18 bb EV (Leak PT4)", freq: 0 },
+          { id: "3BET", label: "3-Bet a 11.0 bb", ev: "+0.64 bb EV (GTO)", freq: 100 }
+        ],
+        explanation: "En SB vs BTN jugamos '3-Bet o Fold'. A5s bloquea AA/AK y tiene proyecto al color nut y escalera wheel cuando te pagan."
+      },
+      {
+        id: 2, mode: "POSTFLOP", title: "C-Bet IP en Board Seco Broadway (A♠ K♦ 7♣)",
+        situation: "Abres en BTN a 2.5 bb y BB paga. Flop: A♠ K♦ 7♣ (Bote: 5.5 bb). BB hace Check. Tienes Q♣ J♣.",
+        heroPos: "BTN", villainPos: "BB", potBb: 5.5, hand: "QJs",
+        heroCards: [{r:"Q",s:"♣",c:"bg-emerald-950 border-emerald-500 text-emerald-400"},{r:"J",s:"♣",c:"bg-emerald-950 border-emerald-500 text-emerald-400"}],
+        board: [{r:"A",s:"♠",c:"bg-slate-800 border-slate-500 text-white"},{r:"K",s:"♦",c:"bg-sky-950 border-sky-500 text-sky-400"},{r:"7",s:"♣",c:"bg-emerald-950 border-emerald-500 text-emerald-400"}],
+        options: [
+          { id: "CHECK", label: "Check Back", ev: "+1.12 bb EV", freq: 5 },
+          { id: "BET33", label: "Bet 33% (1.8 bb)", ev: "+1.68 bb EV (GTO)", freq: 85 },
+          { id: "BET75", label: "Bet 75% (4.1 bb)", ev: "+1.35 bb EV", freq: 10 }
+        ],
+        explanation: "En A-K-7 rainbow BTN tiene ventaja total de rango y de nuts. Apostamos 33% con casi todo el rango y preparamos un 2nd barrel fuerte en el Turn."
+      },
+      {
+        id: 3, mode: "POSTFLOP", title: "Control de Bote en Flop Conectado (J♠ T♠ 8♦)",
+        situation: "Abres en BTN a 2.5 bb y BB paga. Flop: J♠ T♠ 8♦ (Bote: 5.5 bb). BB hace Check. Tienes 6♥ 6♣.",
+        heroPos: "BTN", villainPos: "BB", potBb: 5.5, hand: "66",
+        heroCards: [{r:"6",s:"♥",c:"bg-rose-950 border-rose-500 text-rose-400"},{r:"6",s:"♣",c:"bg-emerald-950 border-emerald-500 text-emerald-400"}],
+        board: [{r:"J",s:"♠",c:"bg-slate-800 border-slate-500 text-white"},{r:"T",s:"♠",c:"bg-slate-800 border-slate-500 text-white"},{r:"8",s:"♦",c:"bg-sky-950 border-sky-500 text-sky-400"}],
+        options: [
+          { id: "CHECK", label: "Check Back", ev: "+0.82 bb EV (GTO)", freq: 95 },
+          { id: "BET33", label: "Bet 33% (1.8 bb)", ev: "+0.21 bb EV (Leak PT4)", freq: 0 },
+          { id: "BET75", label: "Bet 75% (4.1 bb)", ev: "-0.34 bb EV", freq: 5 }
+        ],
+        explanation: "En J-T-8 la BB conecta escaleras y dobles parejas masivamente. Hacer Auto C-Bet con 66 quema dinero frente al Check-Raise; haz Check Back."
+      },
+      {
+        id: 4, mode: "PREFLOP", title: "Defensa de Big Blind vs Robo de BTN",
+        situation: "BTN abre a 2.5 bb y SB foldea. Estás en BB con Q♦ 7♦.",
+        heroPos: "BB", villainPos: "BTN", potBb: 4.0, hand: "Q7s",
+        heroCards: [{r:"Q",s:"♦",c:"bg-sky-950 border-sky-500 text-sky-400"},{r:"7",s:"♦",c:"bg-sky-950 border-sky-500 text-sky-400"}],
+        board: [],
+        options: [
+          { id: "FOLD", label: "Fold", ev: "0.00 bb EV (Sobre-foldeo)", freq: 0 },
+          { id: "CALL", label: "Call 1.5 bb", ev: "+0.39 bb EV (GTO)", freq: 100 },
+          { id: "3BET", label: "3-Bet a 11.0 bb", ev: "-0.12 bb EV", freq: 0 }
+        ],
+        explanation: "Con las pot odds de la BB cerrando la acción, todas las Qxs se defienden rentablemente haciendo Call contra un robo de 2.5bb del BTN."
+      }
+    ];
+
+    function App() {
+      const [activeTab, setActiveTab] = useState("PREFLOP");
+      const [selectedCategory, setSelectedCategory] = useState("RFI");
+      const [selectedScenarioId, setSelectedScenarioId] = useState("UTG_RFI");
+      const [matrixMode, setMatrixMode] = useState("GTO");
+      const [selectedHand, setSelectedHand] = useState("A5s");
+
+      const [postflopSpotId, setPostflopSpotId] = useState("BTN_VS_BB_SRP_AK7R");
+      const [postflopStreet, setPostflopStreet] = useState("FLOP");
+
+      const [pt4Db, setPt4Db] = useState(INITIAL_PT4_DB);
+      const [showSyncModal, setShowSyncModal] = useState(false);
+      const [syncStatus, setSyncStatus] = useState("");
+
+      const [drillIdx, setDrillIdx] = useState(0);
+      const [pickedOptionId, setPickedOptionId] = useState(null);
+      const [score, setScore] = useState({ played: 0, hits: 0, streak: 0 });
+
+      const scenario = PREFLOP_SCENARIOS.find(s => s.id === selectedScenarioId) || PREFLOP_SCENARIOS[0];
+      const activeGto = scenario.frequencies[selectedHand] || { raise: 0, call: 0, fold: 100 };
+      const activeHero = scenario.pt4HeroFrequencies[selectedHand] || { raise: 0, call: 0, fold: 100 };
+
+      const postflopSpot = POSTFLOP_SPOTS.find(s => s.id === postflopSpotId) || POSTFLOP_SPOTS[0];
+      const streetPlan = postflopSpot.streets[postflopStreet];
+
+      const activeDrill = STUDY_DRILLS[drillIdx % STUDY_DRILLS.length];
+
+      function handleCsvUpload(e) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const text = String(ev.target?.result || "");
+          const lines = text.split(/\r?\n/).filter(Boolean);
+          const updated = JSON.parse(JSON.stringify(pt4Db));
+          updated.databaseName = `Nube PT4 (${file.name})`;
+          updated.source = "CSV_CLOUD";
+          setPt4Db(updated);
+          setSyncStatus(`¡Reporte "${file.name}" sincronizado en red correctamente! (${lines.length} filas leídas)`);
+        };
+        reader.readAsText(file);
+      }
+
+      return (
+        <div className="min-h-screen flex flex-col bg-slate-950">
+          {/* Header */}
+          <header className="sticky top-0 z-40 bg-slate-950/90 backdrop-blur-md border-b border-slate-800">
+            <div className="max-w-[1440px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 to-rose-700 flex items-center justify-center shadow-lg shadow-rose-600/30 font-black text-xl text-white">
+                  ♠
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-base font-black tracking-tight text-white">IST COACH CLOUD</span>
+                    <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      App En Red · 6-Max 100bb
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 hidden sm:block">
+                    Tablas Preflop & Postflop · Sincronización PokerTracker 4 en Red · Sala de Estudio
+                  </p>
+                </div>
+              </div>
+
+              <nav className="flex items-center gap-1.5 bg-slate-900 p-1 rounded-xl border border-slate-800 overflow-x-auto">
+                {[
+                  { id: "PREFLOP", label: "1. Tablas Preflop (13x13)" },
+                  { id: "POSTFLOP", label: "2. Estrategia Postflop" },
+                  { id: "PT4_LEAKS", label: "3. Rendimiento & Leaks PT4" },
+                  { id: "STUDY_ROOM", label: "4. Sala de Estudio" },
+                ].map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => setActiveTab(t.id)}
+                    className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                      activeTab === t.id
+                        ? "bg-rose-600 text-white shadow-md shadow-rose-600/30"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </nav>
+
+              <button
+                onClick={() => setShowSyncModal(true)}
+                className="px-3.5 py-2 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-xs font-bold text-indigo-200 flex items-center gap-2 shrink-0"
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>Sincronizar PT4 en Red</span>
+              </button>
+            </div>
+          </header>
+
+          {/* Main Content */}
+          <main className="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 py-6">
+            {activeTab === "PREFLOP" && (
+              <div className="space-y-6">
+                {/* Scenario Selector */}
+                <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl">
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+                    <div>
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-rose-400 block">
+                        Visor Interactivo Preflop · Estilo Mento Poker / GTO Wizard
+                      </span>
+                      <h1 className="text-xl sm:text-2xl font-black text-white mt-0.5">{scenario.title}</h1>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { id: "RFI", label: "Open Raise (RFI)" },
+                        { id: "VS_OPEN", label: "Vs Open (3-Bet / Call)" },
+                        { id: "VS_3BET", label: "Vs 3-Bet (4-Bet / Call)" },
+                      ].map(cat => (
+                        <button
+                          key={cat.id}
+                          onClick={() => {
+                            setSelectedCategory(cat.id);
+                            const first = PREFLOP_SCENARIOS.find(s => s.category === cat.id);
+                            if (first) setSelectedScenarioId(first.id);
+                          }}
+                          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+                            selectedCategory === cat.id
+                              ? "bg-rose-600 text-white"
+                              : "bg-slate-950 text-slate-400 border border-slate-800 hover:text-white"
+                          }`}
+                        >
+                          {cat.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 pt-4">
+                    {PREFLOP_SCENARIOS.filter(s => s.category === selectedCategory).map(sc => (
+                      <button
+                        key={sc.id}
+                        onClick={() => setSelectedScenarioId(sc.id)}
+                        className={`px-4 py-2 rounded-xl text-xs font-extrabold border transition-all ${
+                          sc.id === scenario.id
+                            ? "bg-slate-800 text-white border-rose-500 ring-1 ring-rose-500/40"
+                            : "bg-slate-950 text-slate-400 border-slate-800 hover:text-white"
+                        }`}
+                      >
+                        [{sc.heroPos}] {sc.shortTitle}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 13x13 Matrix + Inspector */}
+                <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+                  <div className="xl:col-span-8 bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl">
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-800">
+                      <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                        {[
+                          { id: "GTO", label: "Rango GTO Óptimo" },
+                          { id: "HERO", label: "Mi Rango PT4" },
+                          { id: "DIFF", label: "Comparar Leaks PT4 vs GTO" }
+                        ].map(m => (
+                          <button
+                            key={m.id}
+                            onClick={() => setMatrixMode(m.id)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                              matrixMode === m.id
+                                ? "bg-rose-600 text-white"
+                                : "text-slate-400 hover:text-white"
+                            }`}
+                          >
+                            {m.label}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-4 text-xs">
+                        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-rose-500 inline-block"/> Raise/3Bet: <b>{scenario.gtoSummary.raisePct}%</b></span>
+                        {scenario.gtoSummary.callPct > 0 && (
+                          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-emerald-500 inline-block"/> Call: <b>{scenario.gtoSummary.callPct}%</b></span>
+                        )}
+                        <span className="flex items-center gap-1.5 text-slate-400"><span className="w-3 h-3 rounded bg-slate-800 border border-slate-700 inline-block"/> Fold: <b>{scenario.gtoSummary.foldPct}%</b></span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-13 gap-1 select-none">
+                      {RANKS.map((_, rIdx) =>
+                        RANKS.map((__, cIdx) => {
+                          const hand = getHandLabel(rIdx, cIdx);
+                          const gto = scenario.frequencies[hand];
+                          const hero = scenario.pt4HeroFrequencies[hand];
+                          const src = matrixMode === "HERO" ? hero : gto;
+                          const hasLeak = Math.abs(gto.raise - hero.raise) >= 20 || Math.abs(gto.call - hero.call) >= 20;
+
+                          return (
+                            <button
+                              key={hand}
+                              onClick={() => setSelectedHand(hand)}
+                              onMouseEnter={() => setSelectedHand(hand)}
+                              className={`h-10 sm:h-12 rounded-md p-1 flex flex-col justify-between text-left border transition-all ${
+                                selectedHand === hand
+                                  ? "ring-2 ring-white border-white z-10 scale-105"
+                                  : matrixMode === "DIFF" && hasLeak
+                                  ? "border-amber-400 ring-1 ring-amber-400/50"
+                                  : "border-slate-800"
+                              }`}
+                              style={{
+                                background: `linear-gradient(to right, #f43f5e 0%, #f43f5e ${src.raise}%, #10b981 ${src.raise}%, #10b981 ${src.raise + src.call}%, #0f172a ${src.raise + src.call}%, #0f172a 100%)`
+                              }}
+                            >
+                              <span className={`text-[10px] sm:text-xs font-bold leading-none ${src.raise + src.call > 15 ? "text-white" : "text-slate-400"}`}>
+                                {hand}
+                              </span>
+                              {matrixMode === "DIFF" && hasLeak ? (
+                                <span className="text-[9px] font-black text-amber-300 bg-slate-950/90 px-1 rounded">
+                                  Leak
+                                </span>
+                              ) : (src.raise + src.call > 0 && src.raise + src.call < 100) ? (
+                                <span className="text-[9px] font-semibold text-white bg-slate-950/60 px-1 rounded">
+                                  {src.raise > 0 ? `${src.raise}%` : `${src.call}%`}
+                                </span>
+                              ) : null}
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Inspector */}
+                  <div className="xl:col-span-4 space-y-5">
+                    <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl">
+                      <span className="text-xs uppercase tracking-wider text-slate-400 font-bold">Inspector de Mano</span>
+                      <div className="flex items-center justify-between mt-1 mb-4">
+                        <span className="text-3xl font-black text-white">{selectedHand}</span>
+                        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-800 text-emerald-400">
+                          {getHandCombos(selectedHand)} combos · {scenario.sizing}
+                        </span>
+                      </div>
+
+                      <div className="space-y-3 text-xs">
+                        <div>
+                          <div className="flex justify-between mb-1 font-semibold">
+                            <span>Frecuencia GTO Óptima</span>
+                            <span>{activeGto.raise}% Raise / {activeGto.call}% Call / {activeGto.fold}% Fold</span>
+                          </div>
+                          <div className="w-full h-5 rounded-lg overflow-hidden flex bg-slate-950 border border-slate-800">
+                            <div style={{width:`${activeGto.raise}%`}} className="bg-rose-500"/>
+                            <div style={{width:`${activeGto.call}%`}} className="bg-emerald-500"/>
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="flex justify-between mb-1 font-semibold text-indigo-300">
+                            <span>Tu Frecuencia en PT4</span>
+                            <span>{activeHero.raise}% Raise / {activeHero.call}% Call / {activeHero.fold}% Fold</span>
+                          </div>
+                          <div className="w-full h-5 rounded-lg overflow-hidden flex bg-slate-950 border border-slate-800">
+                            <div style={{width:`${activeHero.raise}%`}} className="bg-rose-500/80"/>
+                            <div style={{width:`${activeHero.call}%`}} className="bg-emerald-500/80"/>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl">
+                      <h4 className="text-sm font-bold text-white mb-3">Claves del Coach para este Spot</h4>
+                      <ul className="space-y-2.5 text-xs text-slate-300 leading-relaxed">
+                        {scenario.coachNotes.map((n, i) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1.5 shrink-0"/>
+                            <span>{n}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === "POSTFLOP" && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {POSTFLOP_SPOTS.map(sp => (
+                    <button
+                      key={sp.id}
+                      onClick={() => { setPostflopSpotId(sp.id); setPostflopStreet("FLOP"); }}
+                      className={`p-4 rounded-2xl border text-left transition-all ${
+                        sp.id === postflopSpot.id
+                          ? "bg-slate-900 border-rose-500 ring-1 ring-rose-500/40"
+                          : "bg-slate-900/60 border-slate-800 hover:border-slate-700"
+                      }`}
+                    >
+                      <div className="flex justify-between text-xs text-slate-400 font-bold mb-1">
+                        <span>{sp.positions}</span>
+                        <span>SPR {sp.spr}</span>
+                      </div>
+                      <div className="text-base font-black text-white mb-2">{sp.spotName}</div>
+                      <div className="flex gap-1.5">
+                        {sp.cards.map((c, idx) => (
+                          <span key={idx} className={`px-2.5 py-1 rounded-lg border text-xs font-black ${c.c}`}>
+                            {c.r}{c.s}
+                          </span>
+                        ))}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
+                  <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-800">
+                    <div>
+                      <span className="text-xs font-bold text-rose-400 uppercase">{postflopSpot.positions} · Bote {postflopSpot.potBb} bb</span>
+                      <h3 className="text-xl font-black text-white mt-0.5">{streetPlan.title}</h3>
+                    </div>
+                    <div className="flex gap-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-800">
+                      {["FLOP", "TURN", "RIVER"].map(st => (
+                        <button
+                          key={st}
+                          onClick={() => setPostflopStreet(st)}
+                          className={`px-4 py-2 rounded-lg text-xs font-bold ${
+                            postflopStreet === st ? "bg-rose-600 text-white" : "text-slate-400 hover:text-white"
+                          }`}
+                        >
+                          {st}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <p className="text-sm text-slate-200 leading-relaxed bg-slate-950 p-4 rounded-xl border border-slate-800">
+                    {streetPlan.summary}
+                  </p>
+
+                  <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200">
+                    <strong className="text-amber-300">Alerta de Leak PT4: </strong>{postflopSpot.pt4Warning}
+                  </div>
+
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-bold text-white">Cómo Jugar Cada Categoría de Mano en {postflopStreet}</h4>
+                    {streetPlan.categories.map((cat, i) => (
+                      <div key={i} className="p-4 rounded-xl bg-slate-950 border border-slate-800 grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
+                        <div className="lg:col-span-4">
+                          <span className="text-sm font-bold text-white block">{cat.name}</span>
+                          <span className="text-xs text-slate-400">{cat.share}% del rango</span>
+                        </div>
+                        <div className="lg:col-span-4">
+                          <div className="w-full h-6 rounded-lg overflow-hidden flex bg-slate-900 border border-slate-800 text-[10px] font-bold">
+                            {cat.ob > 0 && <div style={{width:`${cat.ob}%`}} className="bg-purple-600 text-white flex items-center justify-center">OB {cat.ob}%</div>}
+                            {cat.b75 > 0 && <div style={{width:`${cat.b75}%`}} className="bg-rose-600 text-white flex items-center justify-center">75% ({cat.b75}%)</div>}
+                            {cat.b33 > 0 && <div style={{width:`${cat.b33}%`}} className="bg-amber-500 text-slate-950 flex items-center justify-center">33% ({cat.b33}%)</div>}
+                            {cat.check > 0 && <div style={{width:`${cat.check}%`}} className="bg-emerald-600 text-white flex items-center justify-center">Chk {cat.check}%</div>}
+                          </div>
+                        </div>
+                        <div className="lg:col-span-4 text-xs text-slate-300">{cat.note}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === "PT4_LEAKS" && (
+              <div className="space-y-6">
+                {/* Summary KPIs */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                    <span className="text-xs text-slate-400 font-bold uppercase">Base de Datos en Red</span>
+                    <div className="text-2xl font-black text-white mt-1">{pt4Db.totalHands.toLocaleString()} manos</div>
+                    <span className="text-xs text-indigo-400 mt-1 block">{pt4Db.databaseName}</span>
+                  </div>
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                    <span className="text-xs text-slate-400 font-bold uppercase">Winrate & EV</span>
+                    <div className="text-2xl font-black text-emerald-400 mt-1">+{pt4Db.bb100} bb/100</div>
+                    <span className="text-xs text-slate-400 mt-1 block">All-In EV: +{pt4Db.evBb100} bb/100</span>
+                  </div>
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                    <span className="text-xs text-slate-400 font-bold uppercase">VPIP / PFR / 3-Bet</span>
+                    <div className="text-2xl font-black text-white mt-1">{pt4Db.globalVpip}% / {pt4Db.globalPfr}% / {pt4Db.global3Bet}%</div>
+                    <span className="text-xs text-slate-400 mt-1 block">Target GTO: 25% / 21% / 9.5%</span>
+                  </div>
+                  <div className="bg-gradient-to-br from-rose-950/80 to-slate-900 border border-rose-500/40 rounded-2xl p-5">
+                    <span className="text-xs text-rose-300 font-bold uppercase">Potencial de Mejora</span>
+                    <div className="text-2xl font-black text-rose-400 mt-1">+6.25 bb/100</div>
+                    <span className="text-xs text-rose-200/80 mt-1 block">4 Leaks Críticos Detectados</span>
+                  </div>
+                </div>
+
+                {/* Position Table */}
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 overflow-x-auto">
+                  <h3 className="text-lg font-extrabold text-white mb-4">Rendimiento por Posición (PT4 vs Objetivo GTO)</h3>
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-800 text-slate-400 uppercase">
+                        <th className="py-3 px-3">Posición</th>
+                        <th className="py-3 px-3">Manos</th>
+                        <th className="py-3 px-3">Tu VPIP (GTO)</th>
+                        <th className="py-3 px-3">PFR %</th>
+                        <th className="py-3 px-3">3-Bet %</th>
+                        <th className="py-3 px-3">Cold Call %</th>
+                        <th className="py-3 px-3">Winrate</th>
+                        <th className="py-3 px-3 text-right">Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800">
+                      {Object.values(pt4Db.positions).map(p => (
+                        <tr key={p.pos} className="hover:bg-slate-800/40">
+                          <td className="py-3 px-3 font-black text-white">{p.pos}</td>
+                          <td className="py-3 px-3 text-slate-300">{p.hands.toLocaleString()}</td>
+                          <td className="py-3 px-3 font-bold text-white">{p.vpip}% <span className="text-slate-500">({p.gtoVpip})</span></td>
+                          <td className="py-3 px-3 font-bold text-slate-200">{p.pfr}%</td>
+                          <td className="py-3 px-3 font-bold text-emerald-400">{p.threeBet}%</td>
+                          <td className={`py-3 px-3 font-bold ${p.pos === "SB" && p.coldCall > 3 ? "text-rose-400" : "text-slate-200"}`}>{p.coldCall}%</td>
+                          <td className="py-3 px-3 font-black text-emerald-400">{p.bb100 > 0 ? `+${p.bb100}` : p.bb100} bb/100</td>
+                          <td className="py-3 px-3 text-right">
+                            <button
+                              onClick={() => {
+                                const sc = PREFLOP_SCENARIOS.find(s => s.id === p.scenarioId);
+                                if (sc) {
+                                  setSelectedCategory(sc.category);
+                                  setSelectedScenarioId(sc.id);
+                                  setActiveTab("PREFLOP");
+                                }
+                              }}
+                              className="px-3 py-1 rounded-lg bg-rose-500/20 text-rose-300 hover:bg-rose-600 hover:text-white font-bold"
+                            >
+                              Ver Tabla 13x13
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {activeTab === "STUDY_ROOM" && (
+              <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+                <div className="xl:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-rose-500/20 text-rose-300">
+                      Entrenador Interactivo · {activeDrill.mode}
+                    </span>
+                    <span className="text-xs font-bold text-emerald-400">
+                      Aciertos: {score.hits}/{score.played} · Racha: {score.streak}
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-black text-white mb-1">{activeDrill.title}</h3>
+                  <p className="text-xs text-slate-300 mb-6">{activeDrill.situation}</p>
+
+                  {/* 6-Max Felt */}
+                  <div className="py-8 px-4 rounded-[40px] bg-gradient-to-b from-emerald-950/90 to-slate-950 border-4 border-slate-800 flex flex-col items-center justify-center min-h-[240px]">
+                    <div className="px-4 py-1 rounded-full bg-slate-950 border border-emerald-500/40 text-xs font-extrabold text-emerald-300 mb-4">
+                      Bote: {activeDrill.potBb} bb
+                    </div>
+                    {activeDrill.board.length > 0 && (
+                      <div className="flex gap-2 mb-4">
+                        {activeDrill.board.map((c, i) => (
+                          <div key={i} className={`w-12 h-16 rounded-xl border-2 ${c.c} flex flex-col items-center justify-center font-black text-lg`}>
+                            <span>{c.r}</span><span>{c.s}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex gap-2.5">
+                      {activeDrill.heroCards.map((c, i) => (
+                        <div key={i} className={`w-16 h-22 py-3 rounded-2xl border-2 ${c.c} flex flex-col items-center justify-center font-black text-2xl shadow-xl`}>
+                          <span>{c.r}</span><span>{c.s}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <span className="mt-2 text-xs font-bold text-white">Hero ({activeDrill.heroPos}): {activeDrill.hand}</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
+                    {activeDrill.options.map(opt => (
+                      <button
+                        key={opt.id}
+                        disabled={pickedOptionId !== null}
+                        onClick={() => {
+                          setPickedOptionId(opt.id);
+                          setScore(s => ({
+                            played: s.played + 1,
+                            hits: s.hits + (opt.freq >= 50 ? 1 : 0),
+                            streak: opt.freq >= 50 ? s.streak + 1 : 0
+                          }));
+                        }}
+                        className={`p-3.5 rounded-xl border-2 text-left transition-all ${
+                          pickedOptionId === opt.id
+                            ? "border-white bg-slate-800"
+                            : "border-slate-800 bg-slate-950 hover:border-rose-500"
+                        }`}
+                      >
+                        <div className="flex justify-between font-black text-sm text-white">
+                          <span>{opt.label}</span>
+                          {pickedOptionId && <span className="text-emerald-400">{opt.freq}%</span>}
+                        </div>
+                        <span className="text-[11px] text-slate-400 block mt-1">
+                          {pickedOptionId ? opt.ev : "Elegir acción"}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="xl:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
+                  {!pickedOptionId ? (
+                    <div className="my-auto text-center py-12">
+                      <h4 className="text-base font-bold text-white mb-2">Toma tu Decisión en la Mesa</h4>
+                      <p className="text-xs text-slate-400">Elige la acción inferior para ver las frecuencias exactas del solver y la explicación del coach.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
+                        <span className="text-xs font-bold text-rose-400 uppercase block mb-1">Explicación del Coach</span>
+                        <p className="text-xs sm:text-sm text-slate-200 leading-relaxed">{activeDrill.explanation}</p>
+                      </div>
+                      <button
+                        onClick={() => { setPickedOptionId(null); setDrillIdx(i => i + 1); }}
+                        className="w-full py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm"
+                      >
+                        Siguiente Mano →
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </main>
+
+          {/* Cloud PT4 Sync Modal */}
+          {showSyncModal && (
+            <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-extrabold text-white">Sincronizar PokerTracker 4 en Red</h3>
+                  <button onClick={() => setShowSyncModal(false)} className="text-slate-400 hover:text-white font-bold">✕</button>
+                </div>
+                <p className="text-xs text-slate-400 mb-4">
+                  Para analizar tu base de datos en la web desde cualquier dispositivo, exporta tu reporte por posición desde PokerTracker 4 (<b>Statistics → Position → Export CSV</b>) y súbelo aquí:
+                </p>
+                <label className="block w-full p-6 rounded-2xl border-2 border-dashed border-indigo-500/50 hover:border-indigo-400 bg-slate-950 text-center cursor-pointer mb-4">
+                  <span className="text-sm font-bold text-indigo-300 block mb-1">Haz clic para subir tu reporte CSV de PT4</span>
+                  <span className="text-xs text-slate-400">Soporta reportes de Cash Games 6-Max y 9-Max</span>
+                  <input type="file" accept=".csv,.txt" onChange={handleCsvUpload} className="hidden" />
+                </label>
+                {syncStatus && (
+                  <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-xs text-emerald-300 font-bold mb-4">
+                    {syncStatus}
+                  </div>
+                )}
+                <div className="flex justify-end">
+                  <button onClick={() => setShowSyncModal(false)} className="px-4 py-2 rounded-xl bg-slate-800 text-white text-xs font-bold">
+                    Listo
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+  </script>
+</body>
+</html>
