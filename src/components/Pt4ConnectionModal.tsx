@@ -83,7 +83,7 @@ export default function Pt4ConnectionModal({
             .map((c) => c.replace(/["'%$]/g, "").trim());
           if (cols.length < 4) continue;
 
-          const posRaw = cols[0].to();
+          const posRaw = cols[0].toUpperCase();
           let posKey: Position | null = null;
           if (posRaw.includes("UTG") || posRaw.includes("LJ") || posRaw.includes("EP"))
             posKey = "UTG";
