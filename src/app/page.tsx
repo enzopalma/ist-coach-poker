@@ -19,7 +19,6 @@ import {
   Brain,
   Database,
   Sparkles,
-  ChevronRight,
 } from "lucide-react";
 
 type MainTab = "PREFLOP" | "POSTFLOP" | "PT4_LEAKS" | "STUDY_ROOM";
@@ -64,7 +63,7 @@ export default function HomePage() {
     <div className="min-h-screen flex flex-col bg-slate-950">
       {/* Top Navigation Bar */}
       <header className="sticky top-0 z-40 bg-slate-950/90 backdrop-blur-md border-b border-slate-800/90">
-        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 pt-3 pb-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
           {/* Brand Logo */}
           <div className="flex items-center gap-3">
             {/* Logo: media luna de Estambul + pica de poker */}
@@ -97,8 +96,8 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Center Module Tabs */}
-          <nav className="flex items-center gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-slate-800 overflow-x-auto">
+          {/* Menú principal: debajo del encabezado */}
+          <nav className="order-last w-full flex items-center gap-1 overflow-x-auto">
             <button
               onClick={() => setActiveTab("PREFLOP")}
               className={`px-3.5 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 whitespace-nowrap ${
@@ -216,57 +215,34 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* Position / Spot Pills */}
-              <div className="flex flex-wrap items-center justify-between gap-4 pt-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  {categoryScenarios.map((sc) => {
-                    const isSelected = sc.id === activeScenario.id;
+              {/* Mesa 6-Max: selector único de posiciones */}
+              <div className="flex items-center gap-1.5 pt-3">
+                <span className="text-[11px] text-slate-500 mr-1">Mesa 6-Max:</span>
+                {(["UTG", "MP", "CO", "BTN", "SB", "BB"] as Position[]).map(
+                  (pos) => {
+                    const target = categoryScenarios.find((s) => s.heroPos === pos);
+                    const isHero = activeScenario.heroPos === pos;
+                    const isVillain = activeScenario.villainPos === pos;
                     return (
                       <button
-                        key={sc.id}
-                        onClick={() => setSelectedScenarioId(sc.id)}
-                        className={`px-4 py-2.5 rounded-xl text-xs font-semibold border transition-all flex items-center gap-2 ${
-                          isSelected
-                            ? "bg-slate-800 text-white border-slate-600"
-                            : "bg-slate-950/70 text-slate-400 border-slate-800 hover:border-slate-700 hover:text-white"
+                        key={pos}
+                        disabled={!target}
+                        onClick={() => target && setSelectedScenarioId(target.id)}
+                        className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                          isHero
+                            ? "bg-slate-700 text-white"
+                            : isVillain
+                            ? "text-amber-300 border border-slate-700"
+                            : target
+                            ? "text-slate-400 hover:text-white"
+                            : "text-slate-700 cursor-default"
                         }`}
                       >
-                        <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 text-[10px]">
-                          {sc.heroPos}
-                        </span>
-                        <span>{sc.shortTitle}</span>
-                        <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+                        {pos}
                       </button>
                     );
-                  })}
-                </div>
-
-                {/* Quick Position Visual Chips */}
-                <div className="hidden xl:flex items-center gap-1.5 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
-                  <span className="text-[11px] text-slate-400 mr-1 font-medium">
-                    Mesa 6-Max:
-                  </span>
-                  {(["UTG", "MP", "CO", "BTN", "SB", "BB"] as Position[]).map(
-                    (pos) => {
-                      const isHero = activeScenario.heroPos === pos;
-                      const isVillain = activeScenario.villainPos === pos;
-                      return (
-                        <span
-                          key={pos}
-                          className={`px-2 py-0.5 rounded text-[11px] font-medium ${
-                            isHero
-                              ? "bg-slate-700 text-white"
-                              : isVillain
-                              ? "bg-amber-500/25 text-amber-300 border border-slate-700"
-                              : "bg-slate-900 text-slate-500"
-                          }`}
-                        >
-                          {pos}
-                        </span>
-                      );
-                    }
-                  )}
-                </div>
+                  }
+                )}
               </div>
             </div>
 
