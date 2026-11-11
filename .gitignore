@@ -6,3 +6,5 @@ out/
 .vercel/
 .netlify/
 *.log
+
+.vercel
