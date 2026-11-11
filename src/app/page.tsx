@@ -68,15 +68,15 @@ export default function HomePage() {
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           {/* Brand Logo */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 to-rose-700 flex items-center justify-center shadow-lg shadow-rose-600/30">
+            <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center">
               <Spade className="w-5 h-5 text-white fill-white" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-base font-black tracking-tight text-white">
+                <span className="text-base font-semibold  text-white">
                   IST COACH
                 </span>
-                <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-rose-500/20 text-rose-300 border border-slate-700">
                   6-Max Cash 100bb
                 </span>
               </div>
@@ -90,9 +90,9 @@ export default function HomePage() {
           <nav className="flex items-center gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-slate-800 overflow-x-auto">
             <button
               onClick={() => setActiveTab("PREFLOP")}
-              className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
+              className={`px-3.5 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 whitespace-nowrap ${
                 activeTab === "PREFLOP"
-                  ? "bg-rose-600 text-white shadow-md shadow-rose-600/30"
+                  ? "bg-slate-700 text-white"
                   : "text-slate-400 hover:text-white"
               }`}
             >
@@ -102,9 +102,9 @@ export default function HomePage() {
 
             <button
               onClick={() => setActiveTab("POSTFLOP")}
-              className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
+              className={`px-3.5 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 whitespace-nowrap ${
                 activeTab === "POSTFLOP"
-                  ? "bg-rose-600 text-white shadow-md shadow-rose-600/30"
+                  ? "bg-slate-700 text-white"
                   : "text-slate-400 hover:text-white"
               }`}
             >
@@ -114,9 +114,9 @@ export default function HomePage() {
 
             <button
               onClick={() => setActiveTab("PT4_LEAKS")}
-              className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
+              className={`px-3.5 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 whitespace-nowrap ${
                 activeTab === "PT4_LEAKS"
-                  ? "bg-rose-600 text-white shadow-md shadow-rose-600/30"
+                  ? "bg-slate-700 text-white"
                   : "text-slate-400 hover:text-white"
               }`}
             >
@@ -126,9 +126,9 @@ export default function HomePage() {
 
             <button
               onClick={() => setActiveTab("STUDY_ROOM")}
-              className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
+              className={`px-3.5 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 whitespace-nowrap ${
                 activeTab === "STUDY_ROOM"
-                  ? "bg-rose-600 text-white shadow-md shadow-rose-600/30"
+                  ? "bg-slate-700 text-white"
                   : "text-slate-400 hover:text-white"
               }`}
             >
@@ -140,12 +140,12 @@ export default function HomePage() {
           {/* Right: PT4 Database Connection Pill */}
           <button
             onClick={() => setIsDbModalOpen(true)}
-            className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-bold flex items-center gap-2 transition-all shrink-0"
+            className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-medium flex items-center gap-2 transition-all shrink-0"
           >
             <span
               className={`w-2 h-2 rounded-full ${
                 dbSummary.source === "POSTGRES_LIVE"
-                  ? "bg-emerald-400 animate-pulse"
+                  ? "bg-emerald-400"
                   : "bg-indigo-400"
               }`}
             />
@@ -164,13 +164,13 @@ export default function HomePage() {
         {activeTab === "PREFLOP" && (
           <div className="space-y-6">
             {/* Preflop Situation Selector Bar (like Mento Poker / GTO Wizard) */}
-            <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl">
+            <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 sm:p-5">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-800">
                 <div>
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-rose-400 block">
+                  <span className="text-[11px] font-medium text-rose-400 block">
                     Visor Interactivo Preflop · Cash 6-Max 100bb
                   </span>
-                  <h1 className="text-xl sm:text-2xl font-black text-white mt-0.5">
+                  <h1 className="text-lg font-semibold text-white mt-0.5">
                     {activeScenario.title}
                   </h1>
                 </div>
@@ -193,9 +193,9 @@ export default function HomePage() {
                         );
                         if (firstInCat) setSelectedScenarioId(firstInCat.id);
                       }}
-                      className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+                      className={`px-3.5 py-2 rounded-xl text-xs font-medium transition-all ${
                         selectedCategory === cat.id
-                          ? "bg-rose-600 text-white shadow-md shadow-rose-600/25"
+                          ? "bg-slate-700 text-white"
                           : "bg-slate-950 text-slate-400 border border-slate-800 hover:text-white"
                       }`}
                     >
@@ -214,9 +214,9 @@ export default function HomePage() {
                       <button
                         key={sc.id}
                         onClick={() => setSelectedScenarioId(sc.id)}
-                        className={`px-4 py-2.5 rounded-xl text-xs font-extrabold border transition-all flex items-center gap-2 ${
+                        className={`px-4 py-2.5 rounded-xl text-xs font-semibold border transition-all flex items-center gap-2 ${
                           isSelected
-                            ? "bg-slate-800 text-white border-rose-500 ring-1 ring-rose-500/40 shadow-md"
+                            ? "bg-slate-800 text-white border-slate-600"
                             : "bg-slate-950/70 text-slate-400 border-slate-800 hover:border-slate-700 hover:text-white"
                         }`}
                       >
@@ -242,11 +242,11 @@ export default function HomePage() {
                       return (
                         <span
                           key={pos}
-                          className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                          className={`px-2 py-0.5 rounded text-[11px] font-medium ${
                             isHero
-                              ? "bg-rose-600 text-white"
+                              ? "bg-slate-700 text-white"
                               : isVillain
-                              ? "bg-amber-500/25 text-amber-300 border border-amber-500/40"
+                              ? "bg-amber-500/25 text-amber-300 border border-slate-700"
                               : "bg-slate-900 text-slate-500"
                           }`}
                         >
@@ -266,18 +266,18 @@ export default function HomePage() {
 
         {activeTab === "POSTFLOP" && (
           <div className="space-y-6">
-            <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 block">
+                <span className="text-[11px] font-medium text-emerald-400 block">
                   Laboratorio Postflop · Flop, Turn y River por Textura
                 </span>
-                <h1 className="text-xl sm:text-2xl font-black text-white mt-0.5">
+                <h1 className="text-lg font-semibold text-white mt-0.5">
                   Estrategia Postflop, Tamaños de Apuesta y Categorías de Mano
                 </h1>
               </div>
               <button
                 onClick={() => setActiveTab("STUDY_ROOM")}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold flex items-center gap-2 self-start sm:self-center"
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium flex items-center gap-2 self-start sm:self-center"
               >
                 <Sparkles className="w-3.5 h-3.5 text-rose-400" />
                 <span>Practicar estos Boards en Sala de Estudio</span>

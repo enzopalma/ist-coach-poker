@@ -328,7 +328,7 @@ const SUIT_CARD_STYLE: Record<
   { symbol: string; bg: string; border: string; text: string }
 > = {
   s: { symbol: "♠", bg: "bg-slate-800", border: "border-slate-500", text: "text-white" },
-  h: { symbol: "♥", bg: "bg-rose-950", border: "border-rose-500", text: "text-rose-400" },
+  h: { symbol: "♥", bg: "bg-rose-950", border: "border-slate-600", text: "text-rose-400" },
   d: { symbol: "♦", bg: "bg-sky-950", border: "border-sky-500", text: "text-sky-400" },
   c: {
     symbol: "♣",
@@ -397,7 +397,7 @@ export default function StudyRoomTrainer() {
   return (
     <div className="space-y-6">
       {/* Top Bar: Session Score & Mode Selector */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-slate-900/90 border border-slate-800 rounded-xl p-4 sm:p-5">
         <div className="flex flex-wrap items-center gap-2">
           {(
             [
@@ -414,9 +414,9 @@ export default function StudyRoomTrainer() {
                 setCurrentIndex(0);
                 setSelectedOptionId(null);
               }}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 ${
                 filterMode === m.id
-                  ? "bg-rose-600 text-white shadow-md shadow-rose-600/30"
+                  ? "bg-slate-700 text-white"
                   : "bg-slate-950 text-slate-400 border border-slate-800 hover:text-white"
               }`}
             >
@@ -431,7 +431,7 @@ export default function StudyRoomTrainer() {
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800">
             <Trophy className="w-4 h-4 text-amber-400" />
             <span className="text-slate-400">Precisión GTO:</span>
-            <span className="text-white font-black">{accuracyPct}%</span>
+            <span className="text-white font-semibold">{accuracyPct}%</span>
             <span className="text-slate-500">
               ({sessionStats.optimalHits}/{sessionStats.handsPlayed})
             </span>
@@ -439,7 +439,7 @@ export default function StudyRoomTrainer() {
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800">
             <Flame className="w-4 h-4 text-rose-400" />
             <span className="text-slate-400">Racha:</span>
-            <span className="text-rose-400 font-black">{sessionStats.streak}</span>
+            <span className="text-rose-400 font-semibold">{sessionStats.streak}</span>
           </div>
           <button
             onClick={() => {
@@ -462,15 +462,15 @@ export default function StudyRoomTrainer() {
       {/* Main Trainer Grid: Felt Table + Coach Feedback */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
         {/* Left: Interactive 6-Max Poker Table Simulator */}
-        <div className="xl:col-span-7 bg-slate-900/90 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl flex flex-col justify-between">
+        <div className="xl:col-span-7 bg-slate-900/90 border border-slate-800 rounded-xl p-5 sm:p-6 flex flex-col justify-between">
           {/* Drill Header */}
           <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold uppercase bg-rose-500/20 text-rose-300 border border-rose-500/30">
+              <span className="px-2.5 py-0.5 rounded-md text-[11px] font-medium bg-rose-500/20 text-rose-300 border border-slate-700">
                 {activeDrill.mode}
               </span>
               {activeDrill.isPt4LeakDrill && (
-                <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                <span className="px-2.5 py-0.5 rounded-md text-[11px] font-medium bg-amber-500/20 text-amber-300 border border-slate-700">
                   Corrector de Leak PT4
                 </span>
               )}
@@ -481,7 +481,7 @@ export default function StudyRoomTrainer() {
             </span>
           </div>
 
-          <h3 className="text-lg font-extrabold text-white mb-1">
+          <h3 className="text-lg font-semibold text-white mb-1">
             {activeDrill.title}
           </h3>
           <p className="text-xs sm:text-sm text-slate-300 mb-6">
@@ -489,7 +489,7 @@ export default function StudyRoomTrainer() {
           </p>
 
           {/* 6-Max Felt Visualization */}
-          <div className="relative my-2 py-8 px-4 rounded-[48px] bg-gradient-to-b from-emerald-950/90 via-emerald-900/50 to-slate-950 border-4 border-slate-800 shadow-2xl flex flex-col items-center justify-center min-h-[260px]">
+          <div className="relative my-2 py-8 px-4 rounded-3xl bg-emerald-950/40 border-4 border-slate-800 flex flex-col items-center justify-center min-h-[260px]">
             {/* Position Badges Around Table */}
             <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
               {(["UTG", "MP", "CO", "BTN", "SB", "BB"] as Position[]).map((pos) => {
@@ -498,9 +498,9 @@ export default function StudyRoomTrainer() {
                 return (
                   <div
                     key={pos}
-                    className={`px-3 py-1 rounded-full text-xs font-bold border transition-all ${
+                    className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
                       isHero
-                        ? "bg-rose-600 text-white border-rose-400 shadow-lg shadow-rose-600/40 scale-105"
+                        ? "bg-slate-700 text-white border-rose-400 scale-105"
                         : isVillain
                         ? "bg-amber-500/20 text-amber-300 border-amber-400/50"
                         : "bg-slate-900/80 text-slate-500 border-slate-800"
@@ -513,7 +513,7 @@ export default function StudyRoomTrainer() {
             </div>
 
             {/* Pot Size Badge */}
-            <div className="px-4 py-1 rounded-full bg-slate-950/90 border border-emerald-500/40 text-xs font-extrabold text-emerald-300 mb-4 shadow">
+            <div className="px-4 py-1 rounded-full bg-slate-950/90 border border-slate-700 text-xs font-semibold text-emerald-300 mb-4 shadow">
               Bote Actual: {activeDrill.potBb.toFixed(1)} bb
             </div>
 
@@ -525,9 +525,9 @@ export default function StudyRoomTrainer() {
                   return (
                     <div
                       key={idx}
-                      className={`w-12 h-16 sm:w-14 sm:h-20 rounded-xl border-2 ${st.bg} ${st.border} flex flex-col items-center justify-center shadow-lg`}
+                      className={`w-12 h-16 sm:w-14 sm:h-20 rounded-xl border-2 ${st.bg} ${st.border} flex flex-col items-center justify-center`}
                     >
-                      <span className="text-lg sm:text-xl font-black text-white leading-none">
+                      <span className="text-lg sm:text-xl font-semibold text-white leading-none">
                         {c.rank}
                       </span>
                       <span className={`text-lg sm:text-xl leading-none mt-1 ${st.text}`}>
@@ -547,19 +547,19 @@ export default function StudyRoomTrainer() {
                   return (
                     <div
                       key={idx}
-                      className={`w-16 h-22 sm:w-18 sm:h-24 py-3 rounded-2xl border-2 ${st.bg} ${st.border} flex flex-col items-center justify-center shadow-xl ring-2 ring-white/10`}
+                      className={`w-16 h-22 sm:w-18 sm:h-24 py-3 rounded-xl border-2 ${st.bg} ${st.border} flex flex-col items-center justify-center ring-2 ring-white/10`}
                     >
-                      <span className="text-2xl font-black text-white leading-none">
+                      <span className="text-xl font-semibold text-white leading-none">
                         {c.rank}
                       </span>
-                      <span className={`text-2xl leading-none mt-1 ${st.text}`}>
+                      <span className={`text-xl leading-none mt-1 ${st.text}`}>
                         {st.symbol}
                       </span>
                     </div>
                   );
                 })}
               </div>
-              <span className="mt-2 text-xs font-extrabold text-white bg-slate-950/90 px-3 py-0.5 rounded-full border border-slate-700">
+              <span className="mt-2 text-xs font-semibold text-white bg-slate-950/90 px-3 py-0.5 rounded-full border border-slate-700">
                 Hero ({activeDrill.heroPos}): {activeDrill.handNotation} · 100 bb
               </span>
             </div>
@@ -567,7 +567,7 @@ export default function StudyRoomTrainer() {
 
           {/* Decision Action Buttons */}
           <div className="mt-6">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-2.5">
+            <span className="text-xs font-medium text-slate-400 block mb-2.5">
               ¿Cuál es la acción óptima en este spot?
             </span>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -601,10 +601,10 @@ export default function StudyRoomTrainer() {
                     }`}
                   >
                     <div className="flex items-center justify-between w-full">
-                      <span className="text-sm font-black">{opt.label}</span>
+                      <span className="text-sm font-semibold">{opt.label}</span>
                       {showResult && (
                         <span
-                          className={`text-xs font-extrabold px-2 py-0.5 rounded ${
+                          className={`text-xs font-semibold px-2 py-0.5 rounded ${
                             opt.frequencyPct >= 50
                               ? "bg-emerald-500 text-slate-950"
                               : opt.frequencyPct > 0
@@ -627,13 +627,13 @@ export default function StudyRoomTrainer() {
         </div>
 
         {/* Right: Instant GTO Evaluation & Coach Explanation */}
-        <div className="xl:col-span-5 bg-slate-900/90 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl flex flex-col justify-between">
+        <div className="xl:col-span-5 bg-slate-900/90 border border-slate-800 rounded-xl p-5 sm:p-6 flex flex-col justify-between">
           {!selectedOptionId ? (
             <div className="my-auto text-center py-12 px-4">
-              <div className="w-14 h-14 rounded-2xl bg-slate-800/80 border border-slate-700 flex items-center justify-center mx-auto mb-4">
+              <div className="w-14 h-14 rounded-xl bg-slate-800/80 border border-slate-700 flex items-center justify-center mx-auto mb-4">
                 <Brain className="w-7 h-7 text-rose-400" />
               </div>
-              <h4 className="text-base font-bold text-white mb-2">
+              <h4 className="text-base font-medium text-white mb-2">
                 Selecciona tu Acción en la Mesa
               </h4>
               <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
@@ -646,10 +646,10 @@ export default function StudyRoomTrainer() {
             <div className="space-y-5">
               {/* Verdict Banner */}
               {chosenOption && chosenOption.frequencyPct >= 50 ? (
-                <div className="p-4 rounded-xl bg-emerald-500/15 border border-emerald-500/40 flex items-start gap-3">
+                <div className="p-4 rounded-xl bg-emerald-500/15 border border-slate-700 flex items-start gap-3">
                   <CheckCircle2 className="w-6 h-6 text-emerald-400 shrink-0 mt-0.5" />
                   <div>
-                    <span className="text-sm font-black text-emerald-300 block">
+                    <span className="text-sm font-semibold text-emerald-300 block">
                       ¡Decisión GTO Óptima! ({chosenOption.label})
                     </span>
                     <span className="text-xs text-emerald-200">
@@ -659,10 +659,10 @@ export default function StudyRoomTrainer() {
                   </div>
                 </div>
               ) : chosenOption && chosenOption.frequencyPct >= 5 ? (
-                <div className="p-4 rounded-xl bg-amber-500/15 border border-amber-500/40 flex items-start gap-3">
+                <div className="p-4 rounded-xl bg-amber-500/15 border border-slate-700 flex items-start gap-3">
                   <AlertTriangle className="w-6 h-6 text-amber-400 shrink-0 mt-0.5" />
                   <div>
-                    <span className="text-sm font-black text-amber-300 block">
+                    <span className="text-sm font-semibold text-amber-300 block">
                       Frecuencia Mixta Secundaria ({chosenOption.label})
                     </span>
                     <span className="text-xs text-amber-200">
@@ -673,10 +673,10 @@ export default function StudyRoomTrainer() {
                   </div>
                 </div>
               ) : (
-                <div className="p-4 rounded-xl bg-rose-500/15 border border-rose-500/40 flex items-start gap-3">
+                <div className="p-4 rounded-xl bg-rose-500/15 border border-slate-700 flex items-start gap-3">
                   <XCircle className="w-6 h-6 text-rose-400 shrink-0 mt-0.5" />
                   <div>
-                    <span className="text-sm font-black text-rose-300 block">
+                    <span className="text-sm font-semibold text-rose-300 block">
                       Error / Leak de EV ({chosenOption?.label})
                     </span>
                     <span className="text-xs text-rose-200">
@@ -689,7 +689,7 @@ export default function StudyRoomTrainer() {
 
               {/* Frequency Breakdown Bars */}
               <div className="space-y-2.5">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block">
+                <span className="text-xs font-medium text-slate-400 block">
                   Distribución GTO del Spot ({activeDrill.handNotation})
                 </span>
                 {activeDrill.options.map((opt) => (
@@ -718,7 +718,7 @@ export default function StudyRoomTrainer() {
 
               {/* Coach Explanation */}
               <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-                <span className="text-xs font-bold text-rose-400 uppercase tracking-wider block mb-1.5">
+                <span className="text-xs font-medium text-rose-400 block mb-1.5">
                   Explicación del Coach
                 </span>
                 <p className="text-xs sm:text-sm text-slate-200 leading-relaxed">
@@ -728,7 +728,7 @@ export default function StudyRoomTrainer() {
 
               <button
                 onClick={handleNextHand}
-                className="w-full py-3.5 px-5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-lg shadow-rose-600/30 transition-all flex items-center justify-center gap-2"
+                className="w-full py-3.5 px-5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-medium text-sm transition-all flex items-center justify-center gap-2"
               >
                 <span>Siguiente Mano de Entrenamiento</span>
                 <ArrowRight className="w-4 h-4" />

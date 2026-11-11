@@ -83,7 +83,7 @@ export default function Pt4ConnectionModal({
             .map((c) => c.replace(/["'%$]/g, "").trim());
           if (cols.length < 4) continue;
 
-          const posRaw = cols[0].toUpperCase();
+          const posRaw = cols[0].to();
           let posKey: Position | null = null;
           if (posRaw.includes("UTG") || posRaw.includes("LJ") || posRaw.includes("EP"))
             posKey = "UTG";
@@ -162,7 +162,7 @@ export default function Pt4ConnectionModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-6 shadow-2xl relative">
+      <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-xl w-full p-6 relative">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-white"
@@ -171,11 +171,11 @@ export default function Pt4ConnectionModal({
         </button>
 
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-slate-700 flex items-center justify-center">
             <Cloud className="w-5 h-5 text-indigo-400" />
           </div>
           <div>
-            <h3 className="text-lg font-extrabold text-white">
+            <h3 className="text-lg font-semibold text-white">
               Sincronización en Red con PokerTracker 4
             </h3>
             <p className="text-xs text-slate-400">
@@ -190,7 +190,7 @@ export default function Pt4ConnectionModal({
           <button
             type="button"
             onClick={() => setTab("CLOUD_UPLOAD")}
-            className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+            className={`py-2 px-3 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
               tab === "CLOUD_UPLOAD"
                 ? "bg-indigo-600 text-white shadow"
                 : "text-slate-400 hover:text-white"
@@ -202,7 +202,7 @@ export default function Pt4ConnectionModal({
           <button
             type="button"
             onClick={() => setTab("REMOTE_DB")}
-            className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+            className={`py-2 px-3 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
               tab === "REMOTE_DB"
                 ? "bg-indigo-600 text-white shadow"
                 : "text-slate-400 hover:text-white"
@@ -214,7 +214,7 @@ export default function Pt4ConnectionModal({
           <button
             type="button"
             onClick={() => setTab("DEMO")}
-            className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+            className={`py-2 px-3 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
               tab === "DEMO"
                 ? "bg-indigo-600 text-white shadow"
                 : "text-slate-400 hover:text-white"
@@ -227,9 +227,9 @@ export default function Pt4ConnectionModal({
 
         {tab === "CLOUD_UPLOAD" && (
           <div className="space-y-4">
-            <div className="p-5 rounded-2xl border-2 border-dashed border-slate-700 hover:border-indigo-500 bg-slate-950/60 text-center transition-all">
+            <div className="p-5 rounded-xl border-2 border-dashed border-slate-700 hover:border-indigo-500 bg-slate-950/60 text-center transition-all">
               <FileSpreadsheet className="w-9 h-9 text-indigo-400 mx-auto mb-2" />
-              <h4 className="text-sm font-bold text-white mb-1">
+              <h4 className="text-sm font-medium text-white mb-1">
                 Sube tu Reporte por Posición de PokerTracker 4 (.csv)
               </h4>
               <p className="text-xs text-slate-400 max-w-md mx-auto mb-4">
@@ -239,7 +239,7 @@ export default function Pt4ConnectionModal({
                 </strong>{" "}
                 y súbelo aquí para analizar tus spots desde cualquier navegador en red.
               </p>
-              <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold cursor-pointer shadow-lg shadow-indigo-600/30">
+              <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-medium cursor-pointer">
                 <Upload className="w-4 h-4" />
                 <span>Seleccionar Archivo CSV de PT4</span>
                 <input
@@ -252,7 +252,7 @@ export default function Pt4ConnectionModal({
             </div>
 
             {csvSuccessMsg && (
-              <div className="p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center gap-2 text-xs text-emerald-300 font-semibold">
+              <div className="p-3 rounded-xl bg-emerald-500/15 border border-slate-700 flex items-center gap-2 text-xs text-emerald-300 font-semibold">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span>{csvSuccessMsg}</span>
               </div>
@@ -327,7 +327,7 @@ export default function Pt4ConnectionModal({
               <button
                 type="submit"
                 disabled={loading}
-                className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-2"
+                className="px-5 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-medium flex items-center gap-2"
               >
                 {loading ? (
                   <>
@@ -348,7 +348,7 @@ export default function Pt4ConnectionModal({
         {tab === "DEMO" && (
           <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-4">
             <div className="text-xs">
-              <span className="text-white font-bold block mb-1">
+              <span className="text-white font-medium block mb-1">
                 Base de Datos Cloud Demo (62,450 manos NL50 6-Max)
               </span>
               <span className="text-slate-400">
@@ -362,7 +362,7 @@ export default function Pt4ConnectionModal({
                 onSelectDatabase(DEMO_PT4_DATABASE);
                 onClose();
               }}
-              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shrink-0"
+              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium shrink-0"
             >
               Cargar Demo Online
             </button>
@@ -370,7 +370,7 @@ export default function Pt4ConnectionModal({
         )}
 
         {errorMsg && (
-          <div className="mt-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-start gap-2 text-xs text-rose-200">
+          <div className="mt-4 p-3 rounded-xl bg-rose-500/10 border border-slate-700 flex items-start gap-2 text-xs text-rose-200">
             <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
             <span>{errorMsg}</span>
           </div>
