@@ -1,13 +1,16 @@
 "use client";
 
-import React, { useState } from "react";
-import {
-  PREFLOP_SCENARIOS,
-  ScenarioCategory,
-  Position,
-} from "@/data/pokerRanges";
+import React, { useEffect, useMemo, useState } from "react";
 import { DEMO_PT4_DATABASE, Pt4DatabaseSummary } from "@/data/pt4Analytics";
+import {
+  ALL_SPOTS,
+  OVERRIDES_KEY,
+  RangeOverride,
+  applyOverride,
+} from "@/data/spots";
 import RangeMatrix13x13 from "@/components/RangeMatrix13x13";
+import QuickSpotBar from "@/components/QuickSpotBar";
+import RangeImportModal from "@/components/RangeImportModal";
 import PostflopExplorer from "@/components/PostflopExplorer";
 import Pt4AnalyticsDashboard from "@/components/Pt4AnalyticsDashboard";
 import StudyRoomTrainer from "@/components/StudyRoomTrainer";
@@ -25,10 +28,8 @@ type MainTab = "PREFLOP" | "POSTFLOP" | "PT4_LEAKS" | "STUDY_ROOM";
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<MainTab>("PREFLOP");
-  const [selectedCategory, setSelectedCategory] =
-    useState<ScenarioCategory>("RFI");
   const [selectedScenarioId, setSelectedScenarioId] =
-    useState<string>("UTG_RFI");
+    useState<string>("BTN_RFI");
   const [selectedPostflopSpotId, setSelectedPostflopSpotId] = useState<string>(
     "BTN_VS_BB_SRP_AK7R"
   );
@@ -37,18 +38,49 @@ export default function HomePage() {
     useState<Pt4DatabaseSummary>(DEMO_PT4_DATABASE);
   const [isDbModalOpen, setIsDbModalOpen] = useState(false);
 
-  const activeScenario =
-    PREFLOP_SCENARIOS.find((s) => s.id === selectedScenarioId) ||
-    PREFLOP_SCENARIOS[0];
+  // Rangos importados por el usuario (guardados en el navegador)
+  const [overrides, setOverrides] = useState<Record<string, RangeOverride>>({});
+  const [isImportOpen, setIsImportOpen] = useState(false);
 
-  const categoryScenarios = PREFLOP_SCENARIOS.filter(
-    (s) => s.category === selectedCategory
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(OVERRIDES_KEY);
+      if (saved) setOverrides(JSON.parse(saved));
+      const last = localStorage.getItem("ist-coach-last-spot");
+      if (last && ALL_SPOTS.some((s) => s.id === last)) setSelectedScenarioId(last);
+    } catch {
+      /* sin almacenamiento disponible */
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("ist-coach-last-spot", selectedScenarioId);
+    } catch {
+      /* ignorar */
+    }
+  }, [selectedScenarioId]);
+
+  function saveOverrides(next: Record<string, RangeOverride>) {
+    setOverrides(next);
+    try {
+      localStorage.setItem(OVERRIDES_KEY, JSON.stringify(next));
+    } catch {
+      /* ignorar */
+    }
+  }
+
+  const spots = useMemo(
+    () => ALL_SPOTS.map((s) => (overrides[s.id] ? applyOverride(s, overrides[s.id]) : s)),
+    [overrides]
   );
 
+  const activeScenario =
+    spots.find((s) => s.id === selectedScenarioId) || spots[0];
+
   function handleJumpToPreflopScenario(scenarioId: string) {
-    const found = PREFLOP_SCENARIOS.find((s) => s.id === scenarioId);
+    const found = spots.find((s) => s.id === scenarioId);
     if (found) {
-      setSelectedCategory(found.category);
       setSelectedScenarioId(found.id);
       setActiveTab("PREFLOP");
     }
@@ -172,82 +204,48 @@ export default function HomePage() {
       {/* Main Content Area */}
       <main className="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 py-6">
         {activeTab === "PREFLOP" && (
-          <div className="space-y-6">
-            {/* Preflop Situation Selector Bar (like Mento Poker / GTO Wizard) */}
-            <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 sm:p-5">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-800">
-                <div>
-                  <span className="text-[11px] font-medium text-rose-400 block">
-                    Visor Preflop · Cash 6-Max 100bb
-                  </span>
-                  <h1 className="text-lg font-semibold text-white mt-0.5">
-                    {activeScenario.title}
-                  </h1>
-                </div>
-
-                {/* Action Tree Category Selector */}
-                <div className="flex flex-wrap items-center gap-2">
-                  {(
-                    [
-                      { id: "RFI", label: "1. Open Raise (RFI)" },
-                      { id: "VS_OPEN", label: "2. Vs Open (3-Bet / Call)" },
-                      { id: "VS_3BET", label: "3. Vs 3-Bet (4-Bet / Call)" },
-                    ] as { id: ScenarioCategory; label: string }[]
-                  ).map((cat) => (
-                    <button
-                      key={cat.id}
-                      onClick={() => {
-                        setSelectedCategory(cat.id);
-                        const firstInCat = PREFLOP_SCENARIOS.find(
-                          (s) => s.category === cat.id
-                        );
-                        if (firstInCat) setSelectedScenarioId(firstInCat.id);
-                      }}
-                      className={`px-3.5 py-2 rounded-xl text-xs font-medium transition-all ${
-                        selectedCategory === cat.id
-                          ? "bg-slate-700 text-white"
-                          : "bg-slate-950 text-slate-400 border border-slate-800 hover:text-white"
-                      }`}
-                    >
-                      {cat.label}
-                    </button>
-                  ))}
-                </div>
+          <div className="space-y-4">
+            <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <span className="text-[11px] text-slate-500">Visor Preflop · Cash 6-Max 100bb</span>
+                <button
+                  onClick={() => setIsImportOpen(true)}
+                  className="text-[11px] text-slate-400 hover:text-white border border-slate-700 rounded px-2 py-1"
+                >
+                  Importar rango
+                </button>
               </div>
 
-              {/* Mesa 6-Max: selector único de posiciones */}
-              <div className="flex items-center gap-1.5 pt-3">
-                <span className="text-[11px] text-slate-500 mr-1">Mesa 6-Max:</span>
-                {(["UTG", "MP", "CO", "BTN", "SB", "BB"] as Position[]).map(
-                  (pos) => {
-                    const target = categoryScenarios.find((s) => s.heroPos === pos);
-                    const isHero = activeScenario.heroPos === pos;
-                    const isVillain = activeScenario.villainPos === pos;
-                    return (
-                      <button
-                        key={pos}
-                        disabled={!target}
-                        onClick={() => target && setSelectedScenarioId(target.id)}
-                        className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
-                          isHero
-                            ? "bg-slate-700 text-white"
-                            : isVillain
-                            ? "text-amber-300 border border-slate-700"
-                            : target
-                            ? "text-slate-400 hover:text-white"
-                            : "text-slate-700 cursor-default"
-                        }`}
-                      >
-                        {pos}
-                      </button>
-                    );
-                  }
-                )}
+              <QuickSpotBar
+                spots={spots}
+                activeId={activeScenario.id}
+                importedIds={new Set(Object.keys(overrides))}
+                onSelect={setSelectedScenarioId}
+              />
+
+              <div className="flex items-baseline gap-3 mt-4 pt-3 border-t border-slate-800">
+                <h1 className="text-lg font-semibold text-white">{activeScenario.title}</h1>
+                <span className="text-xs text-slate-500">{activeScenario.sizing}</span>
+                <span className="text-[11px] text-slate-600 ml-auto">
+                  {overrides[activeScenario.id] ? "Rango importado" : "Referencia aproximada"}
+                </span>
               </div>
             </div>
 
-            {/* 13x13 Interactive Hand Matrix */}
             <RangeMatrix13x13 scenario={activeScenario} />
+
+            <RangeImportModal
+              isOpen={isImportOpen}
+              spot={activeScenario}
+              isImported={!!overrides[activeScenario.id]}
+              onClose={() => setIsImportOpen(false)}
+              onSave={(ov) => saveOverrides({ ...overrides, [activeScenario.id]: ov })}
+              onReset={() => {
+                const next = { ...overrides };
+                delete next[activeScenario.id];
+                saveOverrides(next);
+              }}
+            />
           </div>
         )}
 

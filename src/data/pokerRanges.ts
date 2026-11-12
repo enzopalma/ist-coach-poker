@@ -106,7 +106,7 @@ function buildRangeMap(
   return map;
 }
 
-function computeSummary(freqs: Record<string, HandFrequencies>) {
+export function computeSummary(freqs: Record<string, HandFrequencies>) {
   let raiseCombos = 0;
   let callCombos = 0;
   let foldCombos = 0;
@@ -128,7 +128,7 @@ function computeSummary(freqs: Record<string, HandFrequencies>) {
 }
 
 // Create realistic PT4 Hero deviations from a GTO range (e.g., Hero under-3bets suited wheel aces, over-calls offsuit broadways)
-function buildHeroDeviation(
+export function buildHeroDeviation(
   gto: Record<string, HandFrequencies>,
   mode: "RFI" | "VS_OPEN_IP" | "VS_OPEN_BB" | "VS_3BET"
 ): Record<string, HandFrequencies> {

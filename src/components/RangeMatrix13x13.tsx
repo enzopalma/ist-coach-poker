@@ -74,7 +74,7 @@ export default function RangeMatrix13x13({ scenario }: RangeMatrix13x13Props) {
                   : "text-slate-400 hover:text-white"
               }`}
             >
-              Rango GTO Óptimo
+              Rango de referencia
             </button>
             <button
               onClick={() => setViewMode("PT4_HERO")}
@@ -95,7 +95,7 @@ export default function RangeMatrix13x13({ scenario }: RangeMatrix13x13Props) {
               }`}
             >
               <Sparkles className="w-3.5 h-3.5" />
-              Comparar Leaks PT4 vs GTO
+              Comparar con mi PT4 (simulado)
             </button>
           </div>
 
@@ -281,7 +281,7 @@ export default function RangeMatrix13x13({ scenario }: RangeMatrix13x13Props) {
           <div className="space-y-3 mb-4">
             <div>
               <div className="flex justify-between text-xs font-semibold mb-1">
-                <span className="text-slate-300">Solución GTO Óptima</span>
+                <span className="text-slate-300">Referencia</span>
                 <span className="text-slate-400">
                   {activeGto.raise}% Raise · {activeGto.call}% Call · {activeGto.fold}% Fold
                 </span>
@@ -362,10 +362,10 @@ export default function RangeMatrix13x13({ scenario }: RangeMatrix13x13Props) {
                 {selectedDiffRaise < -15
                   ? `Estás subiendo/3-beteando un ${Math.abs(
                       selectedDiffRaise
-                    )}% menos que GTO con ${selectedHand}. Aprovecha sus bloqueadores y equidad suited para presionar más.`
+                    )}% menos que la referencia con ${selectedHand}. Aprovecha sus bloqueadores y equidad suited para presionar más.`
                   : selectedDiffCall > 15
                   ? `Estás pagando un +${selectedDiffCall}% de más con ${selectedHand}. Evita pagar con manos dominadas o sin iniciativa.`
-                  : `Tu frecuencia difiere de la línea óptima GTO. Ajusta hacia ${activeGto.raise}% Raise / ${activeGto.call}% Call.`}
+                  : `Tu frecuencia difiere de la referencia. Ajusta hacia ${activeGto.raise}% Raise / ${activeGto.call}% Call.`}
               </div>
             </div>
           ) : (
@@ -373,7 +373,7 @@ export default function RangeMatrix13x13({ scenario }: RangeMatrix13x13Props) {
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
               <span>
                 Tu frecuencia en PT4 con <strong>{selectedHand}</strong> está bien
-                calibrada respecto al rango GTO.
+                calibrada respecto a la referencia.
               </span>
             </div>
           )}
