@@ -80,6 +80,7 @@ export type SampleFilterPreset =
   | "ALL_TIME"
   | "TODAY"
   | "YESTERDAY"
+  | "LAST_7_DAYS"
   | "THIS_WEEK"
   | "LAST_WEEK"
   | "THIS_MONTH"
@@ -130,6 +131,13 @@ export const PT4_FILTER_PRESETS: PresetFilterMeta[] = [
     shortLabel: "Ayer",
     category: "QUICK",
     description: "Manos jugadas durante el día de ayer",
+  },
+  {
+    id: "LAST_7_DAYS",
+    label: "Últimos 7 días",
+    shortLabel: "Últimos 7 días",
+    category: "QUICK",
+    description: "Últimos 7 días móviles de juego",
   },
   {
     id: "THIS_WEEK",
@@ -598,6 +606,35 @@ const DEMO_PRESET_SUMMARIES: Partial<Record<SampleFilterPreset, Pt4DatabaseSumma
       BTN: { position: "BTN", hands: 230, vpip: 43.8, pfr: 39.5, rfi: 46.2, threeBet: 12.2, foldTo3Bet: 46.0, coldCall: 6.2, cbetFlop: 71.0, cbetTurn: 47.5, wtsd: 28.2, wsd: 53.0, wwsf: 49.0, bb100: 36.5, evBb100: 35.8 },
       SB: { position: "SB", hands: 220, vpip: 28.8, pfr: 27.2, rfi: 41.8, threeBet: 13.0, foldTo3Bet: 51.5, coldCall: 1.2, cbetFlop: 56.0, cbetTurn: 45.0, wtsd: 26.8, wsd: 52.5, wwsf: 47.0, bb100: -12.9, evBb100: -13.2 },
       BB: { position: "BB", hands: 220, vpip: 36.8, pfr: 11.8, rfi: 0, threeBet: 12.0, foldTo3Bet: 50.0, coldCall: 24.8, cbetFlop: 59.0, cbetTurn: 47.0, wtsd: 28.2, wsd: 52.8, wwsf: 45.5, bb100: -25.8, evBb100: -26.0 },
+    },
+  },
+
+  // ÚLTIMOS 7 DÍAS: Muestra de la última semana de juego
+  LAST_7_DAYS: {
+    source: "DEMO",
+    playerName: "Hero_IST",
+    databaseName: "PT4 Demo · Últimos 7 días",
+    stakeLabel: "NL50 ($0.25/$0.50) 6-Max",
+    totalHands: 3650,
+    netWonUsd: 149.65,
+    bb100: 8.2,
+    evBb100: 8.0,
+    globalVpip: 25.5,
+    globalPfr: 21.8,
+    global3Bet: 10.8,
+    globalFoldTo3Bet: 48.0,
+    globalCbetFlop: 64.2,
+    globalCbetTurn: 52.2,
+    globalWtsd: 27.4,
+    globalWsd: 54.2,
+    globalWwsf: 48.8,
+    positions: {
+      UTG: { position: "UTG", hands: 600, vpip: 17.0, pfr: 16.9, rfi: 16.9, threeBet: 0, foldTo3Bet: 55.0, coldCall: 0.1, cbetFlop: 62.8, cbetTurn: 47.5, wtsd: 26.9, wsd: 54.8, wwsf: 46.9, bb100: 14.8, evBb100: 14.5 },
+      MP: { position: "MP", hands: 610, vpip: 21.1, pfr: 20.4, rfi: 21.1, threeBet: 6.6, foldTo3Bet: 55.5, coldCall: 1.0, cbetFlop: 63.8, cbetTurn: 48.5, wtsd: 27.1, wsd: 54.0, wwsf: 47.8, bb100: 18.2, evBb100: 17.9 },
+      CO: { position: "CO", hands: 620, vpip: 28.2, pfr: 26.9, rfi: 28.2, threeBet: 9.2, foldTo3Bet: 52.5, coldCall: 1.6, cbetFlop: 66.5, cbetTurn: 50.5, wtsd: 27.6, wsd: 54.2, wwsf: 48.8, bb100: 24.8, evBb100: 24.4 },
+      BTN: { position: "BTN", hands: 620, vpip: 44.2, pfr: 39.8, rfi: 46.8, threeBet: 12.5, foldTo3Bet: 45.5, coldCall: 5.8, cbetFlop: 70.5, cbetTurn: 48.0, wtsd: 28.1, wsd: 53.2, wwsf: 49.2, bb100: 37.4, evBb100: 36.2 },
+      SB: { position: "SB", hands: 600, vpip: 29.2, pfr: 27.6, rfi: 42.2, threeBet: 13.4, foldTo3Bet: 50.8, coldCall: 1.1, cbetFlop: 55.5, cbetTurn: 45.5, wtsd: 26.7, wsd: 52.8, wwsf: 47.2, bb100: -12.4, evBb100: -12.8 },
+      BB: { position: "BB", hands: 600, vpip: 37.2, pfr: 12.1, rfi: 0, threeBet: 12.2, foldTo3Bet: 49.5, coldCall: 24.9, cbetFlop: 58.5, cbetTurn: 47.5, wtsd: 28.1, wsd: 52.9, wwsf: 45.8, bb100: -25.2, evBb100: -25.6 },
     },
   },
 

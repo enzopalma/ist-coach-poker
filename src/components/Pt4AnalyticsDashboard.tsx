@@ -141,45 +141,21 @@ export default function Pt4AnalyticsDashboard({
               </label>
             </div>
 
-            {/* Barra desplegable simple y unificada */}
-            <div className="relative w-full sm:w-[320px] md:w-[380px]">
+            {/* Barra desplegable simple y unificada sin subtítulos */}
+            <div className="relative w-full sm:w-[260px] md:w-[290px]">
               <select
                 id="pt4-sample-dropdown"
                 value={filterState.preset}
                 onChange={(e) => applyPreset(e.target.value as SampleFilterPreset)}
                 className="w-full appearance-none bg-slate-950 border border-slate-700 hover:border-indigo-500 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-medium text-white shadow-inner focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all cursor-pointer pr-10"
               >
-                <optgroup label="Historial Completo">
-                  <option value="ALL_TIME">
-                    Toda la muestra (Lifetime · {baselineSummary.totalHands.toLocaleString()} manos)
-                  </option>
-                </optgroup>
-                <optgroup label="Sesiones y Días">
-                  <option value="TODAY">Hoy (Sesión del día)</option>
-                  <option value="YESTERDAY">Ayer</option>
-                </optgroup>
-                <optgroup label="Semanas y Meses">
-                  <option value="THIS_WEEK">Esta semana</option>
-                  <option value="LAST_WEEK">Semana anterior</option>
-                  <option value="THIS_MONTH">Este mes</option>
-                  <option value="LAST_MONTH">Mes anterior</option>
-                  <option value="LAST_30_DAYS">Últimos 30 días</option>
-                  <option value="LAST_90_DAYS">Últimos 90 días</option>
-                </optgroup>
-                <optgroup label="Años">
-                  <option value="THIS_YEAR">Este año</option>
-                  <option value="LAST_YEAR">Año anterior</option>
-                </optgroup>
-                <optgroup label="Cantidad de Manos">
-                  <option value="LAST_1K">Últimas 1.000 manos</option>
-                  <option value="LAST_5K">Últimas 5.000 manos</option>
-                  <option value="LAST_10K">Últimas 10.000 manos</option>
-                  <option value="LAST_25K">Últimas 25.000 manos</option>
-                  <option value="LAST_50K">Últimas 50.000 manos</option>
-                </optgroup>
-                <optgroup label="Personalizado">
-                  <option value="CUSTOM_DATE">Rango personalizado (Desde - Hasta)...</option>
-                </optgroup>
+                <option value="ALL_TIME">Toda la muestra</option>
+                <option value="TODAY">Hoy</option>
+                <option value="YESTERDAY">Ayer</option>
+                <option value="LAST_7_DAYS">Últimos 7 dias</option>
+                <option value="LAST_30_DAYS">Últimos 30 dias</option>
+                <option value="THIS_YEAR">Este año</option>
+                <option value="CUSTOM_DATE">Desde - Hasta</option>
               </select>
               <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>

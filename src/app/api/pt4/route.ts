@@ -121,6 +121,8 @@ export async function POST(req: NextRequest) {
       } else if (preset === "YESTERDAY") {
         dateFilterClause =
           " AND s.date_played >= (CURRENT_DATE - INTERVAL '1 day') AND s.date_played < CURRENT_DATE";
+      } else if (preset === "LAST_7_DAYS") {
+        dateFilterClause = " AND s.date_played >= (CURRENT_TIMESTAMP - INTERVAL '7 days')";
       } else if (preset === "THIS_WEEK") {
         dateFilterClause = " AND s.date_played >= date_trunc('week', CURRENT_DATE)";
       } else if (preset === "LAST_WEEK") {
