@@ -8,12 +8,27 @@
  *
  * Uso:
  *   node pt4-sync-agent.mjs
+ *   node pt4-sync-agent.mjs --filter=today
+ *   node pt4-sync-agent.mjs --filter=this_month
+ *   node pt4-sync-agent.mjs --filter=last_10k
+ *   node pt4-sync-agent.mjs --since=2026-10-01
  */
 
 import pg from "pg";
 import fs from "fs";
 
 const { Client } = pg;
+
+// Parse CLI flags: --filter=today, --since=YYYY-MM-DD, etc.
+const args = process.argv.slice(2);
+function getArg(name) {
+  const match = args.find((a) => a.startsWith(`--${name}=`));
+  return match ? match.split("=")[1] : null;
+}
+
+const filterArg = (getArg("filter") || process.env.PT4_FILTER || "ALL_TIME").toUpperCase();
+const sinceArg = getArg("since") || process.env.PT4_SINCE;
+const untilArg = getArg("until") || process.env.PT4_UNTIL;
 
 const config = {
   host: process.env.PT4_HOST || "localhost",
@@ -61,6 +76,46 @@ async function syncPt4ToCloudFile() {
     const hero = playerRes.rows[0];
     console.log(`✅ Jugador detectado: ${hero.player_name} (${hero.hands} manos)`);
 
+    // Filtro de muestra (PokerTracker 4)
+    let filterClause = "";
+    const qParams = [hero.id_player];
+
+    if (filterArg === "TODAY") {
+      filterClause = " AND s.date_played >= CURRENT_DATE";
+      console.log("📅 Filtro aplicado: Sesión de Hoy");
+    } else if (filterArg === "YESTERDAY") {
+      filterClause = " AND s.date_played >= (CURRENT_DATE - INTERVAL '1 day') AND s.date_played < CURRENT_DATE";
+      console.log("📅 Filtro aplicado: Sesión de Ayer");
+    } else if (filterArg === "THIS_WEEK") {
+      filterClause = " AND s.date_played >= date_trunc('week', CURRENT_DATE)";
+      console.log("📅 Filtro aplicado: Esta Semana");
+    } else if (filterArg === "THIS_MONTH") {
+      filterClause = " AND s.date_played >= date_trunc('month', CURRENT_DATE)";
+      console.log("📅 Filtro aplicado: Este Mes");
+    } else if (filterArg === "LAST_MONTH") {
+      filterClause = " AND s.date_played >= (date_trunc('month', CURRENT_DATE) - INTERVAL '1 month') AND s.date_played < date_trunc('month', CURRENT_DATE)";
+      console.log("📅 Filtro aplicado: Mes Anterior");
+    } else if (filterArg === "THIS_YEAR") {
+      filterClause = " AND s.date_played >= date_trunc('year', CURRENT_DATE)";
+      console.log("📅 Filtro aplicado: Este Año");
+    } else if (filterArg === "LAST_30_DAYS") {
+      filterClause = " AND s.date_played >= (CURRENT_TIMESTAMP - INTERVAL '30 days')";
+      console.log("📅 Filtro aplicado: Últimos 30 Días");
+    } else if (sinceArg) {
+      qParams.push(sinceArg);
+      filterClause = ` AND s.date_played >= $${qParams.length}`;
+      if (untilArg) {
+        qParams.push(untilArg + " 23:59:59");
+        filterClause += ` AND s.date_played <= $${qParams.length}`;
+      }
+      console.log(`📅 Filtro aplicado: Desde ${sinceArg} ${untilArg ? `hasta ${untilArg}` : ""}`);
+    } else if (filterArg.startsWith("LAST_") || ["1K", "5K", "10K", "25K", "50K"].some((k) => filterArg.includes(k))) {
+      const numMatch = filterArg.match(/\d+/);
+      const limit = numMatch ? Number(numMatch[0]) * (filterArg.includes("K") ? 1000 : 1) : 10000;
+      filterClause = ` AND s.id_hand IN (SELECT sub.id_hand FROM cash_hand_player_statistics sub WHERE sub.id_player = $1 ORDER BY sub.date_played DESC LIMIT ${limit})`;
+      console.log(`🎯 Filtro aplicado: Últimas ${limit.toLocaleString()} manos`);
+    }
+
     const statsRes = await client.query(
       `
       SELECT
@@ -78,10 +133,10 @@ async function syncPt4ToCloudFile() {
         SUM(CASE WHEN l.amt_bb > 0 THEN (s.amt_won / l.amt_bb) ELSE 0 END) AS total_bb_won
       FROM cash_hand_player_statistics s
       LEFT JOIN cash_limit l ON s.id_limit = l.id_limit
-      WHERE s.id_player = $1
+      WHERE s.id_player = $1 ${filterClause}
       GROUP BY s.position;
       `,
-      [hero.id_player]
+      qParams
     );
 
     await client.end();

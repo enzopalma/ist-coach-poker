@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
       password = "dbpass",
       playerName = "",
       action = "fetch_stats",
+      sampleFilter,
     } = body;
 
     client = new Client({
@@ -109,6 +110,58 @@ export async function POST(req: NextRequest) {
       resolvedPlayerName = topPlayerRes.rows[0].player_name;
     }
 
+    // Dynamic sample/date filter for PokerTracker 4
+    let dateFilterClause = "";
+    const queryParams: (string | number)[] = [targetPlayerId];
+
+    if (sampleFilter && sampleFilter.preset && sampleFilter.preset !== "ALL_TIME") {
+      const { preset, customFrom, customTo } = sampleFilter;
+      if (preset === "TODAY") {
+        dateFilterClause = " AND s.date_played >= CURRENT_DATE";
+      } else if (preset === "YESTERDAY") {
+        dateFilterClause =
+          " AND s.date_played >= (CURRENT_DATE - INTERVAL '1 day') AND s.date_played < CURRENT_DATE";
+      } else if (preset === "THIS_WEEK") {
+        dateFilterClause = " AND s.date_played >= date_trunc('week', CURRENT_DATE)";
+      } else if (preset === "LAST_WEEK") {
+        dateFilterClause =
+          " AND s.date_played >= (date_trunc('week', CURRENT_DATE) - INTERVAL '1 week') AND s.date_played < date_trunc('week', CURRENT_DATE)";
+      } else if (preset === "THIS_MONTH") {
+        dateFilterClause = " AND s.date_played >= date_trunc('month', CURRENT_DATE)";
+      } else if (preset === "LAST_MONTH") {
+        dateFilterClause =
+          " AND s.date_played >= (date_trunc('month', CURRENT_DATE) - INTERVAL '1 month') AND s.date_played < date_trunc('month', CURRENT_DATE)";
+      } else if (preset === "THIS_YEAR") {
+        dateFilterClause = " AND s.date_played >= date_trunc('year', CURRENT_DATE)";
+      } else if (preset === "LAST_YEAR") {
+        dateFilterClause =
+          " AND s.date_played >= (date_trunc('year', CURRENT_DATE) - INTERVAL '1 year') AND s.date_played < date_trunc('year', CURRENT_DATE)";
+      } else if (preset === "LAST_30_DAYS") {
+        dateFilterClause = " AND s.date_played >= (CURRENT_TIMESTAMP - INTERVAL '30 days')";
+      } else if (preset === "LAST_90_DAYS") {
+        dateFilterClause = " AND s.date_played >= (CURRENT_TIMESTAMP - INTERVAL '90 days')";
+      } else if (preset === "CUSTOM_DATE" && customFrom) {
+        queryParams.push(customFrom);
+        dateFilterClause = ` AND s.date_played >= $${queryParams.length}`;
+        if (customTo) {
+          queryParams.push(customTo + " 23:59:59");
+          dateFilterClause += ` AND s.date_played <= $${queryParams.length}`;
+        }
+      } else if (
+        ["LAST_1K", "LAST_5K", "LAST_10K", "LAST_25K", "LAST_50K"].includes(preset)
+      ) {
+        const limits: Record<string, number> = {
+          LAST_1K: 1000,
+          LAST_5K: 5000,
+          LAST_10K: 10000,
+          LAST_25K: 25000,
+          LAST_50K: 50000,
+        };
+        const lim = limits[preset] || 10000;
+        dateFilterClause = ` AND s.id_hand IN (SELECT sub.id_hand FROM cash_hand_player_statistics sub WHERE sub.id_player = $1 ORDER BY sub.date_played DESC LIMIT ${lim})`;
+      }
+    }
+
     // Query PT4 cash_hand_player_statistics grouped by position
     const statsQuery = `
       SELECT
@@ -135,11 +188,11 @@ export async function POST(req: NextRequest) {
         SUM(CASE WHEN l.amt_bb > 0 THEN ((s.amt_won + COALESCE(s.amt_allin_ev_diff, 0)) / l.amt_bb) ELSE 0 END) AS total_ev_bb_won
       FROM cash_hand_player_statistics s
       LEFT JOIN cash_limit l ON s.id_limit = l.id_limit
-      WHERE s.id_player = $1
+      WHERE s.id_player = $1 ${dateFilterClause}
       GROUP BY s.position;
     `;
 
-    const statsRes = await client.query(statsQuery, [targetPlayerId]);
+    const statsRes = await client.query(statsQuery, queryParams);
     await client.end();
 
     const posBuckets: Record<
@@ -299,7 +352,10 @@ export async function POST(req: NextRequest) {
       source: "POSTGRES_LIVE",
       playerName: resolvedPlayerName,
       databaseName: database,
-      stakeLabel: "Cash Games PT4 Live",
+      stakeLabel:
+        sampleFilter?.preset && sampleFilter.preset !== "ALL_TIME"
+          ? `Cash Games PT4 (${sampleFilter.preset})`
+          : "Cash Games PT4 Live",
       totalHands,
       netWonUsd: Number(totalNetWon.toFixed(2)),
       bb100: totalHands > 0 ? Number(((totalBbWon / totalHands) * 100).toFixed(2)) : 0,
