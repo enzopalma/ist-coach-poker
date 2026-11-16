@@ -51,7 +51,6 @@ export default function Pt4AnalyticsDashboard({
   });
   const [customFrom, setCustomFrom] = useState("2026-10-01");
   const [customTo, setCustomTo] = useState("2026-11-16");
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [leakFilterTab, setLeakFilterTab] = useState<"ALL" | "RESOLVED" | "ACTIVE">("ALL");
 
   const baselineSummary = dbSummary;
@@ -104,17 +103,6 @@ export default function Pt4AnalyticsDashboard({
     BB: "BB_VS_BTN",
   };
 
-  // Presets rápidos para la barra superior
-  const quickPresets: SampleFilterPreset[] = [
-    "ALL_TIME",
-    "TODAY",
-    "YESTERDAY",
-    "THIS_WEEK",
-    "THIS_MONTH",
-    "LAST_30_DAYS",
-    "LAST_10K",
-  ];
-
   function applyPreset(preset: SampleFilterPreset) {
     if (preset === "CUSTOM_DATE") {
       setFilterState({
@@ -125,7 +113,6 @@ export default function Pt4AnalyticsDashboard({
     } else {
       setFilterState({ preset });
     }
-    setIsDropdownOpen(false);
   }
 
   function handleApplyCustomRange() {
@@ -138,174 +125,97 @@ export default function Pt4AnalyticsDashboard({
 
   return (
     <div className="space-y-6">
-      {/* ---------------- POKER TRACKER 4 SAMPLE FILTER BAR ---------------- */}
+      {/* ---------------- POKER TRACKER 4 FILTER BAR (BARRA DESPLEGABLE) ---------------- */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 sm:p-5 shadow-lg">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-800">
-          <div>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto">
             <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+              <span className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
                 <Filter className="w-4 h-4" />
               </span>
-              <h2 className="text-base font-bold text-white">
-                Filtros de Muestra PokerTracker 4
-              </h2>
-              {comparison.isFiltered && (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                  Muestra Filtrada Activa
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-slate-400 mt-1 max-w-2xl">
-              Filtra por sesiones recientes, fechas o cantidad de manos para evaluar tus
-              mejoras técnicas presentes sin que la muestra del año completo opaque tus cambios de juego.
-            </p>
-          </div>
-
-          {comparison.isFiltered && (
-            <button
-              onClick={() => applyPreset("ALL_TIME")}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium border border-slate-700 transition-all self-start lg:self-center"
-            >
-              <RotateCcw className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Ver Histórico Total</span>
-            </button>
-          )}
-        </div>
-
-        {/* Quick Filter Buttons & Dropdown */}
-        <div className="flex flex-wrap items-center gap-2 pt-4">
-          <span className="text-[11px] font-semibold text-slate-400 mr-1 flex items-center gap-1">
-            <Clock className="w-3 h-3 text-slate-500" /> Muestra Rápida:
-          </span>
-
-          {quickPresets.map((preset) => {
-            const meta = PT4_FILTER_PRESETS.find((p) => p.id === preset);
-            if (!meta) return null;
-            const isSelected = filterState.preset === preset;
-
-            return (
-              <button
-                key={preset}
-                onClick={() => applyPreset(preset)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  isSelected
-                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30 font-semibold"
-                    : "bg-slate-950/80 hover:bg-slate-800 text-slate-300 border border-slate-800 hover:border-slate-700"
-                }`}
-                title={meta.description}
+              <label
+                htmlFor="pt4-sample-dropdown"
+                className="text-xs sm:text-sm font-semibold text-white whitespace-nowrap"
               >
-                {meta.shortLabel}
+                Muestra PT4:
+              </label>
+            </div>
+
+            {/* Barra desplegable simple y unificada */}
+            <div className="relative w-full sm:w-[320px] md:w-[380px]">
+              <select
+                id="pt4-sample-dropdown"
+                value={filterState.preset}
+                onChange={(e) => applyPreset(e.target.value as SampleFilterPreset)}
+                className="w-full appearance-none bg-slate-950 border border-slate-700 hover:border-indigo-500 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-medium text-white shadow-inner focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all cursor-pointer pr-10"
+              >
+                <optgroup label="Historial Completo">
+                  <option value="ALL_TIME">
+                    Toda la muestra (Lifetime · {baselineSummary.totalHands.toLocaleString()} manos)
+                  </option>
+                </optgroup>
+                <optgroup label="Sesiones y Días">
+                  <option value="TODAY">Hoy (Sesión del día)</option>
+                  <option value="YESTERDAY">Ayer</option>
+                </optgroup>
+                <optgroup label="Semanas y Meses">
+                  <option value="THIS_WEEK">Esta semana</option>
+                  <option value="LAST_WEEK">Semana anterior</option>
+                  <option value="THIS_MONTH">Este mes</option>
+                  <option value="LAST_MONTH">Mes anterior</option>
+                  <option value="LAST_30_DAYS">Últimos 30 días</option>
+                  <option value="LAST_90_DAYS">Últimos 90 días</option>
+                </optgroup>
+                <optgroup label="Años">
+                  <option value="THIS_YEAR">Este año</option>
+                  <option value="LAST_YEAR">Año anterior</option>
+                </optgroup>
+                <optgroup label="Cantidad de Manos">
+                  <option value="LAST_1K">Últimas 1.000 manos</option>
+                  <option value="LAST_5K">Últimas 5.000 manos</option>
+                  <option value="LAST_10K">Últimas 10.000 manos</option>
+                  <option value="LAST_25K">Últimas 25.000 manos</option>
+                  <option value="LAST_50K">Últimas 50.000 manos</option>
+                </optgroup>
+                <optgroup label="Personalizado">
+                  <option value="CUSTOM_DATE">Rango personalizado (Desde - Hasta)...</option>
+                </optgroup>
+              </select>
+              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+
+            {/* Botón rápido para volver al histórico si hay un filtro aplicado */}
+            {comparison.isFiltered && (
+              <button
+                onClick={() => applyPreset("ALL_TIME")}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium border border-slate-700 transition-all shrink-0"
+                title="Volver a toda la muestra acumulada"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Restablecer</span>
               </button>
-            );
-          })}
-
-          {/* PT4 Dropdown for All Other Presets */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
-                !quickPresets.includes(filterState.preset)
-                  ? "bg-indigo-600 text-white font-semibold shadow"
-                  : "bg-slate-950/80 hover:bg-slate-800 text-slate-300 border border-slate-800"
-              }`}
-            >
-              <span>
-                {!quickPresets.includes(filterState.preset)
-                  ? PT4_FILTER_PRESETS.find((p) => p.id === filterState.preset)?.shortLabel ||
-                    "Más Filtros PT4"
-                  : "Más Filtros PT4"}
-              </span>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-            </button>
-
-            {isDropdownOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setIsDropdownOpen(false)}
-                />
-                <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-72 z-50 bg-slate-900 border border-slate-700 rounded-xl p-2 shadow-2xl space-y-2">
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 py-1 block">
-                      Fechas Relativas PT4
-                    </span>
-                    <div className="space-y-0.5">
-                      {[
-                        "LAST_WEEK",
-                        "LAST_MONTH",
-                        "THIS_YEAR",
-                        "LAST_YEAR",
-                        "LAST_90_DAYS",
-                      ].map((id) => {
-                        const m = PT4_FILTER_PRESETS.find((p) => p.id === id);
-                        if (!m) return null;
-                        return (
-                          <button
-                            key={id}
-                            onClick={() => applyPreset(m.id)}
-                            className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors flex items-center justify-between ${
-                              filterState.preset === m.id
-                                ? "bg-indigo-600 text-white font-semibold"
-                                : "text-slate-300 hover:bg-slate-800"
-                            }`}
-                          >
-                            <span>{m.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="pt-1 border-t border-slate-800">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 py-1 block">
-                      Volumen de Manos (Hand Count)
-                    </span>
-                    <div className="space-y-0.5">
-                      {["LAST_1K", "LAST_5K", "LAST_25K", "LAST_50K"].map((id) => {
-                        const m = PT4_FILTER_PRESETS.find((p) => p.id === id);
-                        if (!m) return null;
-                        return (
-                          <button
-                            key={id}
-                            onClick={() => applyPreset(m.id)}
-                            className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors flex items-center justify-between ${
-                              filterState.preset === m.id
-                                ? "bg-indigo-600 text-white font-semibold"
-                                : "text-slate-300 hover:bg-slate-800"
-                            }`}
-                          >
-                            <span>{m.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="pt-1 border-t border-slate-800">
-                    <button
-                      onClick={() => applyPreset("CUSTOM_DATE")}
-                      className={`w-full text-left px-2.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 ${
-                        filterState.preset === "CUSTOM_DATE"
-                          ? "bg-indigo-600 text-white"
-                          : "text-indigo-400 hover:bg-slate-800"
-                      }`}
-                    >
-                      <Calendar className="w-3.5 h-3.5" />
-                      <span>Rango personalizado (Desde - Hasta)</span>
-                    </button>
-                  </div>
-                </div>
-              </>
             )}
           </div>
+
+          {/* Indicador de muestra activa */}
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-slate-400">Muestra evaluada:</span>
+            <span className="font-semibold text-white px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800">
+              {currentSummary.totalHands.toLocaleString()} manos
+              {comparison.isFiltered && (
+                <span className="text-emerald-400 font-bold ml-1.5">
+                  ({comparison.handsRatioPct}%)
+                </span>
+              )}
+            </span>
+          </div>
         </div>
 
-        {/* Custom Date Range Picker (Visible when CUSTOM_DATE is active) */}
+        {/* Selector de Rango Personalizado (Desde - Hasta) */}
         {filterState.preset === "CUSTOM_DATE" && (
           <div className="mt-4 pt-3 border-t border-slate-800/80 flex flex-wrap items-center gap-3">
             <span className="text-xs text-slate-300 font-medium flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-indigo-400" /> Rango de Fechas PT4:
+              <Calendar className="w-3.5 h-3.5 text-indigo-400" /> Fechas PT4:
             </span>
             <div className="flex items-center gap-2">
               <label className="text-[11px] text-slate-400">Desde:</label>
@@ -329,7 +239,7 @@ export default function Pt4AnalyticsDashboard({
               onClick={handleApplyCustomRange}
               className="px-3.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold"
             >
-              Aplicar Filtro
+              Aplicar Rango
             </button>
           </div>
         )}
