@@ -14,6 +14,7 @@ import RangeImportModal from "@/components/RangeImportModal";
 import PostflopExplorer from "@/components/PostflopExplorer";
 import Pt4AnalyticsDashboard from "@/components/Pt4AnalyticsDashboard";
 import StudyRoomTrainer from "@/components/StudyRoomTrainer";
+import WarmupRoutine from "@/components/WarmupRoutine";
 import Pt4ConnectionModal from "@/components/Pt4ConnectionModal";
 import {
   Grid,
@@ -22,9 +23,10 @@ import {
   Brain,
   Database,
   Sparkles,
+  Flame,
 } from "lucide-react";
 
-type MainTab = "PREFLOP" | "POSTFLOP" | "PT4_LEAKS" | "STUDY_ROOM";
+type MainTab = "PREFLOP" | "POSTFLOP" | "PT4_LEAKS" | "STUDY_ROOM" | "WARMUP";
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<MainTab>("PREFLOP");
@@ -167,6 +169,18 @@ export default function HomePage() {
             </button>
 
             <button
+              onClick={() => setActiveTab("WARMUP")}
+              className={`px-3.5 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                activeTab === "WARMUP"
+                  ? "bg-slate-700 text-white"
+                  : "text-slate-400 hover:text-white"
+              }`}
+            >
+              <Flame className="w-4 h-4 text-amber-400" />
+              <span>Warm-up Pre-sesión</span>
+            </button>
+
+            <button
               onClick={() => setActiveTab("STUDY_ROOM")}
               className={`px-3.5 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 whitespace-nowrap ${
                 activeTab === "STUDY_ROOM"
@@ -280,6 +294,13 @@ export default function HomePage() {
             onOpenPostflopSpot={handleJumpToPostflopSpot}
             onOpenStudyRoom={() => setActiveTab("STUDY_ROOM")}
             onOpenDbModal={() => setIsDbModalOpen(true)}
+          />
+        )}
+
+        {activeTab === "WARMUP" && (
+          <WarmupRoutine
+            onOpenPreflop={() => setActiveTab("PREFLOP")}
+            onOpenLeaks={() => setActiveTab("PT4_LEAKS")}
           />
         )}
 
