@@ -249,6 +249,7 @@ export const ALL_SPOTS: PreflopScenario[] = buildAllSpots();
 export interface RangeOverride {
   raise: string;
   call: string;
+  allIn?: string;
 }
 
 const RANK_IDX = (c: string) => RANKS.indexOf(c as (typeof RANKS)[number]);
@@ -324,16 +325,20 @@ export function parseRange(text: string): { map: Record<string, number>; errors:
 export function applyOverride(spot: PreflopScenario, ov: RangeOverride): PreflopScenario {
   const raise = parseRange(ov.raise).map;
   const call = parseRange(ov.call).map;
+  const allIn = ov.allIn ? parseRange(ov.allIn).map : {};
   const freqs: Frequencies = {};
   for (const h of getAll169Hands()) {
     let r = raise[h] ?? 0;
     let c = call[h] ?? 0;
-    if (r + c > 100) {
-      const k = 100 / (r + c);
+    let a = allIn[h] ?? 0;
+    const total = r + c + a;
+    if (total > 100) {
+      const k = 100 / total;
       r = Math.round(r * k);
-      c = 100 - r;
+      c = Math.round(c * k);
+      a = 100 - r - c;
     }
-    freqs[h] = { raise: r, call: c, fold: 100 - r - c };
+    freqs[h] = { raise: r, call: c, allIn: a, fold: Math.max(0, 100 - r - c - a) };
   }
   const mode =
     spot.category === "RFI" ? "RFI" : spot.category === "VS_3BET" ? "VS_3BET" : spot.heroPos === "BB" ? "VS_OPEN_BB" : "VS_OPEN_IP";
@@ -348,10 +353,10 @@ export function applyOverride(spot: PreflopScenario, ov: RangeOverride): Preflop
 }
 
 /** Convierte las frecuencias actuales a texto, para precargar el editor. */
-export function rangeToText(freqs: Frequencies, kind: "raise" | "call"): string {
+export function rangeToText(freqs: Frequencies, kind: "raise" | "call" | "allIn"): string {
   return getAll169Hands()
-    .filter((h, i, arr) => arr.indexOf(h) === i && freqs[h] && freqs[h][kind] > 0)
-    .map((h) => (freqs[h][kind] >= 100 ? h : `${h}:${freqs[h][kind]}`))
+    .filter((h, i, arr) => arr.indexOf(h) === i && freqs[h] && (freqs[h][kind] ?? 0) > 0)
+    .map((h) => ((freqs[h][kind] ?? 0) >= 100 ? h : `${h}:${freqs[h][kind]}`))
     .join(",");
 }
 

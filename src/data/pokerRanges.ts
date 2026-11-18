@@ -6,6 +6,7 @@ export interface HandFrequencies {
   raise: number; // Open Raise, 3-Bet, or 4-Bet (%)
   call: number;  // Call / Flat (%)
   fold: number;  // Fold (%)
+  allIn?: number; // All-In / Shove (%)
 }
 
 export interface PreflopScenario {
@@ -109,10 +110,13 @@ function buildRangeMap(
 export function computeSummary(freqs: Record<string, HandFrequencies>) {
   let raiseCombos = 0;
   let callCombos = 0;
+  let allInCombos = 0;
   let foldCombos = 0;
 
   for (const [hand, f] of Object.entries(freqs)) {
     const combos = getHandCombos(hand);
+    const a = f.allIn || 0;
+    allInCombos += (combos * a) / 100;
     raiseCombos += (combos * f.raise) / 100;
     callCombos += (combos * f.call) / 100;
     foldCombos += (combos * f.fold) / 100;
@@ -122,8 +126,9 @@ export function computeSummary(freqs: Record<string, HandFrequencies>) {
   return {
     raisePct: Number(((raiseCombos / total) * 100).toFixed(1)),
     callPct: Number(((callCombos / total) * 100).toFixed(1)),
+    allInPct: Number(((allInCombos / total) * 100).toFixed(1)),
     foldPct: Number(((foldCombos / total) * 100).toFixed(1)),
-    totalCombosPlayed: Math.round(raiseCombos + callCombos),
+    totalCombosPlayed: Math.round(raiseCombos + callCombos + allInCombos),
   };
 }
 
