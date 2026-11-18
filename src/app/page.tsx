@@ -297,12 +297,7 @@ export default function HomePage() {
           />
         )}
 
-        {activeTab === "WARMUP" && (
-          <WarmupRoutine
-            onOpenPreflop={() => setActiveTab("PREFLOP")}
-            onOpenLeaks={() => setActiveTab("PT4_LEAKS")}
-          />
-        )}
+        {activeTab === "WARMUP" && <WarmupRoutine />}
 
         {activeTab === "STUDY_ROOM" && <StudyRoomTrainer />}
       </main>
