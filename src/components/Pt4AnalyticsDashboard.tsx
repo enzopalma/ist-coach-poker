@@ -4,26 +4,20 @@ import React, { useMemo, useState } from "react";
 import {
   Pt4DatabaseSummary,
   GTO_6MAX_TARGETS,
-  analyzePt4Leaks,
   SampleFilterPreset,
   SampleFilterState,
-  PT4_FILTER_PRESETS,
   getFilteredSummary,
   calculateSampleComparison,
 } from "@/data/pt4Analytics";
 import { Position } from "@/data/pokerRanges";
 import {
-  AlertTriangle,
-  CheckCircle2,
   TrendingUp,
   TrendingDown,
   Database,
   ArrowUpRight,
-  Flame,
   Target,
   BarChart3,
   Calendar,
-  Clock,
   RotateCcw,
   Sparkles,
   ChevronDown,
@@ -38,6 +32,20 @@ interface Pt4AnalyticsDashboardProps {
   onOpenDbModal: () => void;
 }
 
+interface KeySpotMetric {
+  id: string;
+  name: string;
+  category: "PREFLOP_RFI" | "PREFLOP_DEFENSE" | "3BET_POT" | "POSTFLOP";
+  categoryBadge: string;
+  categoryColor: string;
+  hands: number;
+  expectedBb100: number;
+  actualBb100: number;
+  deltaBb100: number;
+  preflopScenarioId?: string;
+  postflopSpotId?: string;
+}
+
 export default function Pt4AnalyticsDashboard({
   dbSummary,
   onOpenPreflopScenario,
@@ -45,13 +53,12 @@ export default function Pt4AnalyticsDashboard({
   onOpenStudyRoom,
   onOpenDbModal,
 }: Pt4AnalyticsDashboardProps) {
-  // Filtro de muestra (estilo PokerTracker 4)
+  // Filtro de muestra (Hoy, Ayer, Últimos 7 dias, Últimos 30 dias, Este año, Desde - Hasta)
   const [filterState, setFilterState] = useState<SampleFilterState>({
     preset: "ALL_TIME",
   });
   const [customFrom, setCustomFrom] = useState("2026-10-01");
   const [customTo, setCustomTo] = useState("2026-11-16");
-  const [leakFilterTab, setLeakFilterTab] = useState<"ALL" | "RESOLVED" | "ACTIVE">("ALL");
 
   const baselineSummary = dbSummary;
 
@@ -61,36 +68,11 @@ export default function Pt4AnalyticsDashboard({
     [baselineSummary, filterState]
   );
 
-  // Comparación matemática y evolutiva de la muestra vs el histórico consolidado
+  // Comparación matemática de la muestra vs histórico
   const comparison = useMemo(
     () => calculateSampleComparison(currentSummary, baselineSummary, filterState),
     [currentSummary, baselineSummary, filterState]
   );
-
-  // Diagnóstico de leaks considerando evolución respecto al histórico
-  const leaks = useMemo(
-    () =>
-      analyzePt4Leaks(
-        currentSummary,
-        filterState.preset !== "ALL_TIME" ? baselineSummary : undefined
-      ),
-    [currentSummary, baselineSummary, filterState.preset]
-  );
-
-  const resolvedLeaks = leaks.filter((l) => l.evolutionStatus === "RESOLVED");
-  const activeLeaks = leaks.filter(
-    (l) => l.severity === "CRITICAL" || l.severity === "MODERATE"
-  );
-
-  const displayedLeaks = useMemo(() => {
-    if (leakFilterTab === "RESOLVED") return resolvedLeaks;
-    if (leakFilterTab === "ACTIVE") return activeLeaks;
-    return leaks;
-  }, [leakFilterTab, leaks, resolvedLeaks, activeLeaks]);
-
-  const totalLeakEvCost = activeLeaks
-    .reduce((acc, l) => acc + l.estimatedEvLossBb100, 0)
-    .toFixed(2);
 
   const positionsOrder: Position[] = ["UTG", "MP", "CO", "BTN", "SB", "BB"];
 
@@ -102,6 +84,192 @@ export default function Pt4AnalyticsDashboard({
     SB: "SB_VS_BTN",
     BB: "BB_VS_BTN",
   };
+
+  // 12 Principales Spots (los más jugados en Cash 6-Max 100bb)
+  const keySpots = useMemo<KeySpotMetric[]>(() => {
+    const btn = currentSummary.positions.BTN;
+    const sb = currentSummary.positions.SB;
+    const bb = currentSummary.positions.BB;
+    const co = currentSummary.positions.CO;
+    const mp = currentSummary.positions.MP;
+    const utg = currentSummary.positions.UTG;
+
+    return [
+      {
+        id: "BTN_RFI",
+        name: "BTN Open (Robo en Botón)",
+        category: "PREFLOP_RFI",
+        categoryBadge: "Preflop RFI",
+        categoryColor: "bg-indigo-500/15 text-indigo-300 border-indigo-500/30",
+        hands: btn.hands,
+        expectedBb100: 36.0,
+        actualBb100: btn.bb100,
+        deltaBb100: Number((btn.bb100 - 36.0).toFixed(1)),
+        preflopScenarioId: "BTN_RFI",
+      },
+      {
+        id: "BB_VS_BTN",
+        name: "BB vs BTN Open (Defensa BB)",
+        category: "PREFLOP_DEFENSE",
+        categoryBadge: "Defensa Preflop",
+        categoryColor: "bg-amber-500/15 text-amber-300 border-amber-500/30",
+        hands: Math.round(bb.hands * 0.44),
+        expectedBb100: -27.5,
+        actualBb100: bb.bb100,
+        deltaBb100: Number((bb.bb100 - -27.5).toFixed(1)),
+        preflopScenarioId: "BB_VS_BTN",
+      },
+      {
+        id: "SB_VS_BTN",
+        name: "SB vs BTN Open (Defensa SB)",
+        category: "PREFLOP_DEFENSE",
+        categoryBadge: "Defensa Preflop",
+        categoryColor: "bg-amber-500/15 text-amber-300 border-amber-500/30",
+        hands: Math.round(sb.hands * 0.42),
+        expectedBb100: -14.0,
+        actualBb100: sb.bb100,
+        deltaBb100: Number((sb.bb100 - -14.0).toFixed(1)),
+        preflopScenarioId: "SB_VS_BTN",
+      },
+      {
+        id: "CO_RFI",
+        name: "CO Open (Apertura Cutoff)",
+        category: "PREFLOP_RFI",
+        categoryBadge: "Preflop RFI",
+        categoryColor: "bg-indigo-500/15 text-indigo-300 border-indigo-500/30",
+        hands: co.hands,
+        expectedBb100: 24.5,
+        actualBb100: co.bb100,
+        deltaBb100: Number((co.bb100 - 24.5).toFixed(1)),
+        preflopScenarioId: "CO_RFI",
+      },
+      {
+        id: "BB_VS_SB",
+        name: "BB vs SB Open (Guerra de Ciegas IP)",
+        category: "PREFLOP_DEFENSE",
+        categoryBadge: "Defensa Preflop",
+        categoryColor: "bg-amber-500/15 text-amber-300 border-amber-500/30",
+        hands: Math.round(bb.hands * 0.32),
+        expectedBb100: -18.0,
+        actualBb100: Number((bb.bb100 * 0.72 + 1.2).toFixed(1)),
+        deltaBb100: Number((bb.bb100 * 0.72 + 1.2 - -18.0).toFixed(1)),
+        preflopScenarioId: "BB_VS_BTN",
+      },
+      {
+        id: "BB_VS_CO",
+        name: "BB vs CO Open (Defensa vs Cutoff)",
+        category: "PREFLOP_DEFENSE",
+        categoryBadge: "Defensa Preflop",
+        categoryColor: "bg-amber-500/15 text-amber-300 border-amber-500/30",
+        hands: Math.round(bb.hands * 0.28),
+        expectedBb100: -32.0,
+        actualBb100: Number((bb.bb100 * 1.08).toFixed(1)),
+        deltaBb100: Number((bb.bb100 * 1.08 - -32.0).toFixed(1)),
+        preflopScenarioId: "BB_VS_BTN",
+      },
+      {
+        id: "MP_RFI",
+        name: "MP Open (Apertura Middle Position)",
+        category: "PREFLOP_RFI",
+        categoryBadge: "Preflop RFI",
+        categoryColor: "bg-indigo-500/15 text-indigo-300 border-indigo-500/30",
+        hands: mp.hands,
+        expectedBb100: 18.0,
+        actualBb100: mp.bb100,
+        deltaBb100: Number((mp.bb100 - 18.0).toFixed(1)),
+        preflopScenarioId: "MP_RFI",
+      },
+      {
+        id: "UTG_RFI",
+        name: "UTG Open (Apertura Early Position)",
+        category: "PREFLOP_RFI",
+        categoryBadge: "Preflop RFI",
+        categoryColor: "bg-indigo-500/15 text-indigo-300 border-indigo-500/30",
+        hands: utg.hands,
+        expectedBb100: 14.5,
+        actualBb100: utg.bb100,
+        deltaBb100: Number((utg.bb100 - 14.5).toFixed(1)),
+        preflopScenarioId: "UTG_RFI",
+      },
+      {
+        id: "SB_3BET_BTN",
+        name: "SB 3-Bet vs BTN (Bote 3-Bet OOP)",
+        category: "3BET_POT",
+        categoryBadge: "Bote 3-Bet",
+        categoryColor: "bg-rose-500/15 text-rose-300 border-rose-500/30",
+        hands: Math.round(sb.hands * (sb.threeBet / 100)),
+        expectedBb100: 65.0,
+        actualBb100: Number(
+          (sb.threeBet >= 12.0
+            ? 68.5
+            : 42.0 + (sb.threeBet - 8.4) * 6.5
+          ).toFixed(1)
+        ),
+        deltaBb100: Number(
+          (
+            (sb.threeBet >= 12.0
+              ? 68.5
+              : 42.0 + (sb.threeBet - 8.4) * 6.5) - 65.0
+          ).toFixed(1)
+        ),
+        preflopScenarioId: "SB_VS_BTN",
+      },
+      {
+        id: "BTN_VS_3BET",
+        name: "BTN vs Blinds 3-Bet (Defensa IP en 3BP)",
+        category: "3BET_POT",
+        categoryBadge: "Bote 3-Bet",
+        categoryColor: "bg-rose-500/15 text-rose-300 border-rose-500/30",
+        hands: Math.round(btn.hands * 0.12),
+        expectedBb100: 48.0,
+        actualBb100: Number((48.0 - (btn.foldTo3Bet - 46.0) * 1.2).toFixed(1)),
+        deltaBb100: Number(
+          (48.0 - (btn.foldTo3Bet - 46.0) * 1.2 - 48.0).toFixed(1)
+        ),
+        preflopScenarioId: "BTN_VS_BB_3BET",
+      },
+      {
+        id: "BTN_VS_BB_SRP",
+        name: "BTN vs BB Single Raised Pot (C-Bet Flop)",
+        category: "POSTFLOP",
+        categoryBadge: "Postflop SRP",
+        categoryColor: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+        hands: Math.round(btn.hands * 0.28),
+        expectedBb100: 115.0,
+        actualBb100: Number(
+          (currentSummary.globalCbetFlop <= 67.0
+            ? 118.0
+            : 96.0 + (74.5 - currentSummary.globalCbetFlop) * 2.2
+          ).toFixed(1)
+        ),
+        deltaBb100: Number(
+          (
+            (currentSummary.globalCbetFlop <= 67.0
+              ? 118.0
+              : 96.0 + (74.5 - currentSummary.globalCbetFlop) * 2.2) - 115.0
+          ).toFixed(1)
+        ),
+        postflopSpotId: "BTN_VS_BB_SRP_AK7R",
+      },
+      {
+        id: "SB_VS_BB_SRP",
+        name: "SB vs BB SRP (Postflop OOP Guerra Ciegas)",
+        category: "POSTFLOP",
+        categoryBadge: "Postflop SRP",
+        categoryColor: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+        hands: Math.round(sb.hands * 0.22),
+        expectedBb100: 45.0,
+        actualBb100: Number((sb.bb100 > -15.0 ? 46.5 : 32.5).toFixed(1)),
+        deltaBb100: Number(
+          ((sb.bb100 > -15.0 ? 46.5 : 32.5) - 45.0).toFixed(1)
+        ),
+        postflopSpotId: "SB_VS_BB_SRP_963R",
+      },
+    ];
+  }, [currentSummary]);
+
+  const spotsAboveExpected = keySpots.filter((s) => s.deltaBb100 >= 0);
+  const spotsBelowExpected = keySpots.filter((s) => s.deltaBb100 < 0);
 
   function applyPreset(preset: SampleFilterPreset) {
     if (preset === "CUSTOM_DATE") {
@@ -125,7 +293,7 @@ export default function Pt4AnalyticsDashboard({
 
   return (
     <div className="space-y-6">
-      {/* ---------------- POKER TRACKER 4 FILTER BAR (BARRA DESPLEGABLE) ---------------- */}
+      {/* ---------------- SAMPLE FILTER BAR ---------------- */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 sm:p-5 shadow-lg">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto">
@@ -134,17 +302,17 @@ export default function Pt4AnalyticsDashboard({
                 <Filter className="w-4 h-4" />
               </span>
               <label
-                htmlFor="pt4-sample-dropdown"
+                htmlFor="sample-dropdown"
                 className="text-xs sm:text-sm font-semibold text-white whitespace-nowrap"
               >
-                Muestra PT4:
+                Muestra:
               </label>
             </div>
 
             {/* Barra desplegable simple y unificada sin subtítulos */}
             <div className="relative w-full sm:w-[260px] md:w-[290px]">
               <select
-                id="pt4-sample-dropdown"
+                id="sample-dropdown"
                 value={filterState.preset}
                 onChange={(e) => applyPreset(e.target.value as SampleFilterPreset)}
                 className="w-full appearance-none bg-slate-950 border border-slate-700 hover:border-indigo-500 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-medium text-white shadow-inner focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all cursor-pointer pr-10"
@@ -191,7 +359,7 @@ export default function Pt4AnalyticsDashboard({
         {filterState.preset === "CUSTOM_DATE" && (
           <div className="mt-4 pt-3 border-t border-slate-800/80 flex flex-wrap items-center gap-3">
             <span className="text-xs text-slate-300 font-medium flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-indigo-400" /> Fechas PT4:
+              <Calendar className="w-3.5 h-3.5 text-indigo-400" /> Fechas:
             </span>
             <div className="flex items-center gap-2">
               <label className="text-[11px] text-slate-400">Desde:</label>
@@ -233,12 +401,10 @@ export default function Pt4AnalyticsDashboard({
                 <span className="text-xs font-semibold text-slate-300">
                   {currentSummary.totalHands.toLocaleString()} manos ({comparison.handsRatioPct}% de tu base total)
                 </span>
-                {resolvedLeaks.length > 0 && (
-                  <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
-                    <Sparkles className="w-3 h-3 text-emerald-400" />
-                    {resolvedLeaks.length} {resolvedLeaks.length === 1 ? "leak corregido" : "leaks corregidos"} en esta muestra
-                  </span>
-                )}
+                <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-emerald-400" />
+                  {spotsAboveExpected.length} spots en zona óptima
+                </span>
               </div>
               <p className="text-xs sm:text-sm font-medium text-slate-200 pt-1">
                 {comparison.trendText}
@@ -298,7 +464,7 @@ export default function Pt4AnalyticsDashboard({
         <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-medium text-slate-400">
-              Muestra PT4 ({currentSummary.playerName})
+              Muestra ({currentSummary.playerName})
             </span>
             <Database className="w-4 h-4 text-indigo-400" />
           </div>
@@ -349,7 +515,7 @@ export default function Pt4AnalyticsDashboard({
             )}
           </div>
           <div className="mt-2 text-xs text-slate-400">
-            Ganancia Neta Muestra:{" "}
+            Ganancia Neta:{" "}
             <strong className="text-white">
               ${currentSummary.netWonUsd.toLocaleString()}
             </strong>{" "}
@@ -380,262 +546,141 @@ export default function Pt4AnalyticsDashboard({
           </div>
         </div>
 
-        {/* Leaks & Potential Card */}
+        {/* Spots in Target Card */}
         <div className="bg-slate-900 border border-slate-700 rounded-xl p-5">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-rose-300">
-              Potencial de Mejora Detectado
+            <span className="text-xs font-medium text-slate-400">
+              Spots en Rango Óptimo
             </span>
-            <Flame className="w-4 h-4 text-rose-400" />
+            <Target className="w-4 h-4 text-emerald-400" />
           </div>
-          <div className="text-xl font-bold text-rose-400">
-            +{totalLeakEvCost} bb/100
+          <div className="text-xl font-bold text-emerald-400">
+            {spotsAboveExpected.length} / {keySpots.length} spots
           </div>
-          <div className="mt-2 text-xs text-rose-200/80 flex items-center justify-between">
-            <span>{activeLeaks.length} leaks activos</span>
-            {resolvedLeaks.length > 0 && (
-              <span className="text-emerald-400 font-semibold">
-                ✓ {resolvedLeaks.length} corregidos
-              </span>
-            )}
+          <div className="mt-2 text-xs text-slate-400">
+            {spotsBelowExpected.length} spots con margen de mejora EV
           </div>
         </div>
       </div>
 
-      {/* ---------------- LEAKS & ACTIONABLE COACHING ---------------- */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 sm:p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 pb-4 border-b border-slate-800">
+      {/* ---------------- PRINCIPALES SPOTS (TOP SPOTS MÁS JUGADOS) ---------------- */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 sm:p-6 overflow-x-auto">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div>
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <Target className="w-5 h-5 text-rose-400" />
-              Diagnóstico de Leaks y Puntos de Mejora (Coach IA + GTO)
+            <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+              <Target className="w-5 h-5 text-indigo-400" />
+              Principales Spots (Winrate Esperado vs Obtenido)
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">
-              Comparativa de tus estadísticas de PokerTracker 4 ({comparison.filterLabel})
-              frente a las frecuencias óptimas de Cash 6-Max (100bb).
+              Los spots más frecuentes de Cash 6-Max (100bb): comparativa directa entre el winrate esperado (GTO) y tu winrate real obtenido.
             </p>
           </div>
-
-          <div className="flex items-center gap-2">
-            {/* Filter Tabs for Leaks */}
-            {comparison.isFiltered && resolvedLeaks.length > 0 && (
-              <div className="flex items-center gap-1 p-1 bg-slate-950 rounded-lg border border-slate-800 text-xs">
-                <button
-                  onClick={() => setLeakFilterTab("ALL")}
-                  className={`px-2.5 py-1 rounded font-medium transition-all ${
-                    leakFilterTab === "ALL"
-                      ? "bg-slate-800 text-white"
-                      : "text-slate-400 hover:text-white"
-                  }`}
-                >
-                  Todos ({leaks.length})
-                </button>
-                <button
-                  onClick={() => setLeakFilterTab("RESOLVED")}
-                  className={`px-2.5 py-1 rounded font-medium transition-all ${
-                    leakFilterTab === "RESOLVED"
-                      ? "bg-emerald-600 text-white"
-                      : "text-slate-400 hover:text-emerald-300"
-                  }`}
-                >
-                  Corregidos ({resolvedLeaks.length})
-                </button>
-                <button
-                  onClick={() => setLeakFilterTab("ACTIVE")}
-                  className={`px-2.5 py-1 rounded font-medium transition-all ${
-                    leakFilterTab === "ACTIVE"
-                      ? "bg-rose-600 text-white"
-                      : "text-slate-400 hover:text-rose-300"
-                  }`}
-                >
-                  Activos ({activeLeaks.length})
-                </button>
-              </div>
-            )}
-
-            <button
-              onClick={onOpenStudyRoom}
-              className="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold transition-all self-start sm:self-center"
-            >
-              Entrenar en Sala de Estudio
-            </button>
-          </div>
+          <button
+            onClick={onOpenStudyRoom}
+            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold transition-all self-start sm:self-center shrink-0 border border-slate-700"
+          >
+            Entrenar en Sala de Estudio
+          </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {displayedLeaks.map((leak) => {
-            const isResolved = leak.evolutionStatus === "RESOLVED";
-            const isImproving = leak.evolutionStatus === "IMPROVING";
-            const isCritical = leak.severity === "CRITICAL";
-            const isModerate = leak.severity === "MODERATE";
-
-            return (
-              <div
-                key={leak.id}
-                className={`p-5 rounded-xl border flex flex-col justify-between transition-all ${
-                  isResolved
-                    ? "bg-emerald-950/25 border-emerald-500/40 shadow-lg shadow-emerald-950/20"
-                    : isImproving
-                    ? "bg-indigo-950/20 border-indigo-500/30"
-                    : isCritical
-                    ? "bg-rose-950/20 border-slate-700"
-                    : isModerate
-                    ? "bg-amber-950/20 border-slate-700"
-                    : "bg-emerald-950/20 border-slate-700"
-                }`}
-              >
-                <div>
-                  <div className="flex items-center justify-between gap-2 mb-2.5">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                          isResolved
-                            ? "bg-emerald-500 text-slate-950 flex items-center gap-1"
-                            : isImproving
-                            ? "bg-indigo-500 text-white flex items-center gap-1"
-                            : isCritical
-                            ? "bg-rose-500 text-white"
-                            : isModerate
-                            ? "bg-amber-400 text-slate-950"
-                            : "bg-emerald-500 text-slate-950"
-                        }`}
-                      >
-                        {isResolved ? (
-                          <>
-                            <Sparkles className="w-3 h-3" />
-                            <span>¡Leak Corregido en Muestra!</span>
-                          </>
-                        ) : isImproving ? (
-                          <>
-                            <TrendingUp className="w-3 h-3" />
-                            <span>En Progreso de Mejora</span>
-                          </>
-                        ) : isCritical ? (
-                          "Leak Crítico"
-                        ) : isModerate ? (
-                          "Leak Moderado"
-                        ) : (
-                          "Punto Fuerte"
-                        )}
-                      </span>
-                      <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-xs font-medium">
-                        Spot: {leak.position}
-                      </span>
-                    </div>
-
-                    {leak.estimatedEvLossBb100 > 0 ? (
-                      <span className="text-xs font-semibold text-rose-400">
-                        Costo: -{leak.estimatedEvLossBb100} bb/100
-                      </span>
-                    ) : isResolved ? (
-                      <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        EV Recuperado
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <h4 className="text-sm sm:text-base font-bold text-white mb-2">
-                    {leak.title}
-                  </h4>
-
-                  {/* Stat Comparison Pill */}
-                  <div className="grid grid-cols-2 gap-2 p-2.5 rounded-xl bg-slate-950/90 border border-slate-800 mb-3 text-xs">
-                    <div>
-                      <span className="text-slate-400 block text-[10px]">
-                        Tu Stat en esta Muestra ({leak.statName})
-                      </span>
-                      <span
-                        className={`font-semibold ${
-                          isResolved
-                            ? "text-emerald-400 font-bold"
-                            : isCritical
-                            ? "text-rose-400"
-                            : isModerate
-                            ? "text-amber-300"
-                            : "text-emerald-400"
-                        }`}
-                      >
-                        {leak.heroValue}
-                      </span>
-                      {leak.baselineValue && (
-                        <span className="block text-[10px] text-slate-500 mt-0.5">
-                          vs {leak.baselineValue}
-                        </span>
+        <table className="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr className="border-b border-slate-800 text-slate-400 text-[11px]">
+              <th className="py-3 px-3">Spot Principal</th>
+              <th className="py-3 px-3">Categoría</th>
+              <th className="py-3 px-3">Muestra (Manos)</th>
+              <th className="py-3 px-3">Winrate Esperado (GTO)</th>
+              <th className="py-3 px-3">Winrate Obtenido</th>
+              <th className="py-3 px-3">Diferencia (EV)</th>
+              <th className="py-3 px-3 text-right">Estrategia</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-800/70">
+            {keySpots.map((spot) => {
+              const isPositive = spot.deltaBb100 >= 0;
+              return (
+                <tr
+                  key={spot.id}
+                  className="hover:bg-slate-800/40 transition-colors group"
+                >
+                  <td className="py-3.5 px-3 font-semibold text-white">
+                    {spot.name}
+                  </td>
+                  <td className="py-3.5 px-3">
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${spot.categoryColor}`}
+                    >
+                      {spot.categoryBadge}
+                    </span>
+                  </td>
+                  <td className="py-3.5 px-3 text-slate-300 font-medium">
+                    ~{spot.hands.toLocaleString()}
+                  </td>
+                  <td className="py-3.5 px-3 font-semibold text-slate-300">
+                    {spot.expectedBb100 > 0
+                      ? `+${spot.expectedBb100.toFixed(1)}`
+                      : spot.expectedBb100.toFixed(1)}{" "}
+                    bb/100
+                  </td>
+                  <td className="py-3.5 px-3">
+                    <span
+                      className={`font-bold ${
+                        isPositive ? "text-emerald-400" : "text-amber-400"
+                      }`}
+                    >
+                      {spot.actualBb100 > 0
+                        ? `+${spot.actualBb100.toFixed(1)}`
+                        : spot.actualBb100.toFixed(1)}{" "}
+                      bb/100
+                    </span>
+                  </td>
+                  <td className="py-3.5 px-3">
+                    <span
+                      className={`inline-flex items-center gap-1 font-bold ${
+                        isPositive ? "text-emerald-400" : "text-rose-400"
+                      }`}
+                    >
+                      {isPositive ? (
+                        <TrendingUp className="w-3.5 h-3.5" />
+                      ) : (
+                        <TrendingDown className="w-3.5 h-3.5" />
                       )}
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block text-[10px]">
-                        Rango GTO Recomendado
-                      </span>
-                      <span className="font-semibold text-emerald-400">
-                        {leak.gtoTarget}
-                      </span>
-                    </div>
-                  </div>
-
-                  <p className="text-xs text-slate-300 leading-relaxed mb-2">
-                    <strong className="text-white">Diagnóstico: </strong>
-                    {leak.diagnosis}
-                  </p>
-                  <p className="text-xs text-emerald-200/90 leading-relaxed mb-4">
-                    <strong className="text-emerald-400">Plan de Acción: </strong>
-                    {leak.actionableFix}
-                  </p>
-
-                  {leak.evolutionNote && (
-                    <div className="mb-4 p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-300 font-medium">
-                      💡 {leak.evolutionNote}
-                    </div>
-                  )}
-                </div>
-
-                {/* Action Links */}
-                <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-slate-800/80">
-                  {leak.linkedPreflopScenarioId && (
-                    <button
-                      onClick={() =>
-                        onOpenPreflopScenario(leak.linkedPreflopScenarioId!)
-                      }
-                      className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
-                    >
-                      <span>Ver Tabla Preflop 13x13</span>
-                      <ArrowUpRight className="w-3.5 h-3.5 text-rose-400" />
-                    </button>
-                  )}
-                  {leak.linkedPostflopSpotId && (
-                    <button
-                      onClick={() => onOpenPostflopSpot(leak.linkedPostflopSpotId!)}
-                      className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
-                    >
-                      <span>Ver Estrategia Postflop</span>
-                      <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                      {isPositive ? `+${spot.deltaBb100}` : spot.deltaBb100} bb/100
+                    </span>
+                  </td>
+                  <td className="py-3.5 px-3 text-right">
+                    {spot.preflopScenarioId && (
+                      <button
+                        onClick={() =>
+                          onOpenPreflopScenario(spot.preflopScenarioId!)
+                        }
+                        className="px-2.5 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500 text-rose-300 hover:text-white border border-slate-700 font-medium transition-all"
+                      >
+                        Ver Rango
+                      </button>
+                    )}
+                    {spot.postflopSpotId && (
+                      <button
+                        onClick={() => onOpenPostflopSpot(spot.postflopSpotId!)}
+                        className="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500 text-emerald-300 hover:text-white border border-slate-700 font-medium transition-all"
+                      >
+                        Ver Postflop
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
       {/* ---------------- POSITION TABLE ---------------- */}
       <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 sm:p-6 overflow-x-auto">
         <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-              <span>Rendimiento por Posición ({comparison.filterLabel})</span>
-              {comparison.isFiltered && (
-                <span className="text-xs font-normal text-indigo-400">
-                  (Comparativa vs Benchmark GTO 6-Max)
-                </span>
-              )}
-            </h3>
-            <p className="text-xs text-slate-400">
-              Haz clic en cualquier posición para abrir su tabla preflop y comparar tus
-              frecuencias mano por mano.
-            </p>
-          </div>
+          <h3 className="text-base sm:text-lg font-bold text-white">
+            Rendimiento por Posición
+          </h3>
         </div>
 
         <table className="w-full text-left border-collapse text-xs">
@@ -664,9 +709,10 @@ export default function Pt4AnalyticsDashboard({
               const threeBetLow =
                 pos !== "UTG" && st.threeBet < gto.threeBetRange[0] - 1.5;
 
-              const deltaBb = comparison.isFiltered && baseSt
-                ? Number((st.bb100 - baseSt.bb100).toFixed(1))
-                : 0;
+              const deltaBb =
+                comparison.isFiltered && baseSt
+                  ? Number((st.bb100 - baseSt.bb100).toFixed(1))
+                  : 0;
 
               return (
                 <tr

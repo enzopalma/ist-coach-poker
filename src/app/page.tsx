@@ -163,7 +163,7 @@ export default function HomePage() {
               }`}
             >
               <BarChart3 className="w-4 h-4" />
-              <span>Leaks & Spots PT4</span>
+              <span>Leaks & Spots</span>
             </button>
 
             <button
