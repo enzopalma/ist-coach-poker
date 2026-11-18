@@ -268,14 +268,7 @@ export default function WarmupRoutine({
         {/* Columna Izquierda: Reloj Principal Gigante & Métricas PT4 (6 cols) */}
         <div className="lg:col-span-6 space-y-6">
           {/* Card del Reloj Principal Gigante */}
-          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 sm:p-8 flex flex-col items-center justify-center text-center relative overflow-hidden shadow-2xl">
-            {/* Glow de fondo */}
-            <div
-              className={`absolute -top-24 -left-24 w-64 h-64 rounded-full blur-3xl opacity-20 pointer-events-none transition-colors duration-700 ${
-                isTimerRunning ? "bg-emerald-500" : "bg-indigo-500"
-              }`}
-            />
-
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 sm:p-8 flex flex-col items-center justify-center text-center relative shadow-sm">
             {/* Encabezado del Reloj */}
             <div className="w-full flex items-center justify-between mb-4 z-10">
               <div className="flex items-center gap-2">
