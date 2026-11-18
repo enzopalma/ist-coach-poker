@@ -385,7 +385,16 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <RangeMatrix13x13 scenario={activeScenario} />
+              <RangeMatrix13x13
+                scenario={activeScenario}
+                onSaveOverride={(ov) => saveOverrides({ ...overrides, [activeScenario.id]: ov })}
+                onResetOverride={() => {
+                  const next = { ...overrides };
+                  delete next[activeScenario.id];
+                  saveOverrides(next);
+                }}
+                isOverridden={!!overrides[activeScenario.id]}
+              />
 
               <RangeImportModal
                 isOpen={isImportOpen}
