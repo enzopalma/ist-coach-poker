@@ -14,7 +14,6 @@ import {
   TrendingUp,
   TrendingDown,
   Database,
-  ArrowUpRight,
   Target,
   BarChart3,
   Calendar,
@@ -35,7 +34,13 @@ interface Pt4AnalyticsDashboardProps {
 interface KeySpotMetric {
   id: string;
   name: string;
-  category: "PREFLOP_RFI" | "PREFLOP_DEFENSE" | "3BET_POT" | "POSTFLOP";
+  category:
+    | "ROLLED_POT"
+    | "3BET_POT_IP"
+    | "3BET_POT_OOP"
+    | "PREFLOP_RFI"
+    | "PREFLOP_DEFENSE"
+    | "POSTFLOP";
   categoryBadge: string;
   categoryColor: string;
   hands: number;
@@ -59,6 +64,7 @@ export default function Pt4AnalyticsDashboard({
   });
   const [customFrom, setCustomFrom] = useState("2026-10-01");
   const [customTo, setCustomTo] = useState("2026-11-16");
+  const [spotCategoryTab, setSpotCategoryTab] = useState<string>("ALL");
 
   const baselineSummary = dbSummary;
 
@@ -85,7 +91,7 @@ export default function Pt4AnalyticsDashboard({
     BB: "BB_VS_BTN",
   };
 
-  // 12 Principales Spots (los más jugados en Cash 6-Max 100bb)
+  // Principales Spots: Pozos Rolleados, Pozos 3-Beteados IP y OOP, RFI, Defensas y Postflop
   const keySpots = useMemo<KeySpotMetric[]>(() => {
     const btn = currentSummary.positions.BTN;
     const sb = currentSummary.positions.SB;
@@ -95,6 +101,105 @@ export default function Pt4AnalyticsDashboard({
     const utg = currentSummary.positions.UTG;
 
     return [
+      // 1. POZOS ROLLEADOS (Iso-Raise vs Limpers)
+      {
+        id: "ROLLED_IP",
+        name: "Pozo Rolleado IP (Iso-Raise vs Limpers en BTN/CO)",
+        category: "ROLLED_POT",
+        categoryBadge: "Pozo Rolleado IP",
+        categoryColor: "bg-cyan-500/15 text-cyan-300 border-cyan-500/30",
+        hands: Math.round((btn.hands + co.hands) * 0.14),
+        expectedBb100: 85.0,
+        actualBb100: Number((72.5 + (currentSummary.globalPfr - 19.2) * 4.5).toFixed(1)),
+        deltaBb100: Number(
+          ((72.5 + (currentSummary.globalPfr - 19.2) * 4.5) - 85.0).toFixed(1)
+        ),
+        preflopScenarioId: "BTN_RFI",
+      },
+      {
+        id: "ROLLED_OOP",
+        name: "Pozo Rolleado OOP (Iso-Raise vs Limpers en SB/BB)",
+        category: "ROLLED_POT",
+        categoryBadge: "Pozo Rolleado OOP",
+        categoryColor: "bg-cyan-500/15 text-cyan-300 border-cyan-500/30",
+        hands: Math.round((sb.hands + bb.hands) * 0.12),
+        expectedBb100: 45.0,
+        actualBb100: Number((34.0 + (sb.threeBet - 8.4) * 2.8).toFixed(1)),
+        deltaBb100: Number(
+          ((34.0 + (sb.threeBet - 8.4) * 2.8) - 45.0).toFixed(1)
+        ),
+        preflopScenarioId: "BB_VS_BTN",
+      },
+
+      // 2. POZOS 3-BETEADOS IP
+      {
+        id: "3BET_AGGR_IP",
+        name: "Pozo 3-Beteado IP (Agresor: 3-Bet en Posición BTN/CO)",
+        category: "3BET_POT_IP",
+        categoryBadge: "3-Bet Pot IP (Agresor)",
+        categoryColor: "bg-purple-500/15 text-purple-300 border-purple-500/30",
+        hands: Math.round(
+          btn.hands * (btn.threeBet / 100) + co.hands * (co.threeBet / 100)
+        ),
+        expectedBb100: 85.0,
+        actualBb100: Number((68.0 + (btn.threeBet - 8.9) * 5.2).toFixed(1)),
+        deltaBb100: Number(
+          ((68.0 + (btn.threeBet - 8.9) * 5.2) - 85.0).toFixed(1)
+        ),
+        preflopScenarioId: "BTN_VS_BB_3BET",
+      },
+      {
+        id: "3BET_CALL_IP",
+        name: "Pozo 3-Beteado IP (Caller: Defendiendo vs 3-Bet en Posición)",
+        category: "3BET_POT_IP",
+        categoryBadge: "3-Bet Pot IP (Caller)",
+        categoryColor: "bg-purple-500/15 text-purple-300 border-purple-500/30",
+        hands: Math.round(btn.hands * 0.12),
+        expectedBb100: 38.0,
+        actualBb100: Number(
+          (26.5 + (56.5 - btn.foldTo3Bet) * 1.3).toFixed(1)
+        ),
+        deltaBb100: Number(
+          ((26.5 + (56.5 - btn.foldTo3Bet) * 1.3) - 38.0).toFixed(1)
+        ),
+        preflopScenarioId: "BTN_VS_BB_3BET",
+      },
+
+      // 3. POZOS 3-BETEADOS OOP
+      {
+        id: "3BET_AGGR_OOP",
+        name: "Pozo 3-Beteado OOP (Agresor: 3-Bet desde Ciegas SB/BB)",
+        category: "3BET_POT_OOP",
+        categoryBadge: "3-Bet Pot OOP (Agresor)",
+        categoryColor: "bg-rose-500/15 text-rose-300 border-rose-500/30",
+        hands: Math.round(
+          sb.hands * (sb.threeBet / 100) + bb.hands * (bb.threeBet / 100)
+        ),
+        expectedBb100: 58.0,
+        actualBb100: Number((38.5 + (sb.threeBet - 8.4) * 5.5).toFixed(1)),
+        deltaBb100: Number(
+          ((38.5 + (sb.threeBet - 8.4) * 5.5) - 58.0).toFixed(1)
+        ),
+        preflopScenarioId: "SB_VS_BTN",
+      },
+      {
+        id: "3BET_CALL_OOP",
+        name: "Pozo 3-Beteado OOP (Caller: Defendiendo vs 3-Bet Fuera Posición)",
+        category: "3BET_POT_OOP",
+        categoryBadge: "3-Bet Pot OOP (Caller)",
+        categoryColor: "bg-rose-500/15 text-rose-300 border-rose-500/30",
+        hands: Math.round(co.hands * 0.10 + mp.hands * 0.08),
+        expectedBb100: -15.0,
+        actualBb100: Number(
+          (-28.5 + (62.0 - co.foldTo3Bet) * 1.2).toFixed(1)
+        ),
+        deltaBb100: Number(
+          ((-28.5 + (62.0 - co.foldTo3Bet) * 1.2) - -15.0).toFixed(1)
+        ),
+        preflopScenarioId: "CO_RFI",
+      },
+
+      // 4. APERTURAS PREFLOP (RFI)
       {
         id: "BTN_RFI",
         name: "BTN Open (Robo en Botón)",
@@ -108,30 +213,6 @@ export default function Pt4AnalyticsDashboard({
         preflopScenarioId: "BTN_RFI",
       },
       {
-        id: "BB_VS_BTN",
-        name: "BB vs BTN Open (Defensa BB)",
-        category: "PREFLOP_DEFENSE",
-        categoryBadge: "Defensa Preflop",
-        categoryColor: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-        hands: Math.round(bb.hands * 0.44),
-        expectedBb100: -27.5,
-        actualBb100: bb.bb100,
-        deltaBb100: Number((bb.bb100 - -27.5).toFixed(1)),
-        preflopScenarioId: "BB_VS_BTN",
-      },
-      {
-        id: "SB_VS_BTN",
-        name: "SB vs BTN Open (Defensa SB)",
-        category: "PREFLOP_DEFENSE",
-        categoryBadge: "Defensa Preflop",
-        categoryColor: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-        hands: Math.round(sb.hands * 0.42),
-        expectedBb100: -14.0,
-        actualBb100: sb.bb100,
-        deltaBb100: Number((sb.bb100 - -14.0).toFixed(1)),
-        preflopScenarioId: "SB_VS_BTN",
-      },
-      {
         id: "CO_RFI",
         name: "CO Open (Apertura Cutoff)",
         category: "PREFLOP_RFI",
@@ -142,30 +223,6 @@ export default function Pt4AnalyticsDashboard({
         actualBb100: co.bb100,
         deltaBb100: Number((co.bb100 - 24.5).toFixed(1)),
         preflopScenarioId: "CO_RFI",
-      },
-      {
-        id: "BB_VS_SB",
-        name: "BB vs SB Open (Guerra de Ciegas IP)",
-        category: "PREFLOP_DEFENSE",
-        categoryBadge: "Defensa Preflop",
-        categoryColor: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-        hands: Math.round(bb.hands * 0.32),
-        expectedBb100: -18.0,
-        actualBb100: Number((bb.bb100 * 0.72 + 1.2).toFixed(1)),
-        deltaBb100: Number((bb.bb100 * 0.72 + 1.2 - -18.0).toFixed(1)),
-        preflopScenarioId: "BB_VS_BTN",
-      },
-      {
-        id: "BB_VS_CO",
-        name: "BB vs CO Open (Defensa vs Cutoff)",
-        category: "PREFLOP_DEFENSE",
-        categoryBadge: "Defensa Preflop",
-        categoryColor: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-        hands: Math.round(bb.hands * 0.28),
-        expectedBb100: -32.0,
-        actualBb100: Number((bb.bb100 * 1.08).toFixed(1)),
-        deltaBb100: Number((bb.bb100 * 1.08 - -32.0).toFixed(1)),
-        preflopScenarioId: "BB_VS_BTN",
       },
       {
         id: "MP_RFI",
@@ -191,46 +248,61 @@ export default function Pt4AnalyticsDashboard({
         deltaBb100: Number((utg.bb100 - 14.5).toFixed(1)),
         preflopScenarioId: "UTG_RFI",
       },
+
+      // 5. DEFENSA DE CIEGAS VS ROBO
       {
-        id: "SB_3BET_BTN",
-        name: "SB 3-Bet vs BTN (Bote 3-Bet OOP)",
-        category: "3BET_POT",
-        categoryBadge: "Bote 3-Bet",
-        categoryColor: "bg-rose-500/15 text-rose-300 border-rose-500/30",
-        hands: Math.round(sb.hands * (sb.threeBet / 100)),
-        expectedBb100: 65.0,
-        actualBb100: Number(
-          (sb.threeBet >= 12.0
-            ? 68.5
-            : 42.0 + (sb.threeBet - 8.4) * 6.5
-          ).toFixed(1)
-        ),
-        deltaBb100: Number(
-          (
-            (sb.threeBet >= 12.0
-              ? 68.5
-              : 42.0 + (sb.threeBet - 8.4) * 6.5) - 65.0
-          ).toFixed(1)
-        ),
+        id: "BB_VS_BTN",
+        name: "BB vs BTN Open (Defensa BB)",
+        category: "PREFLOP_DEFENSE",
+        categoryBadge: "Defensa Preflop",
+        categoryColor: "bg-amber-500/15 text-amber-300 border-amber-500/30",
+        hands: Math.round(bb.hands * 0.44),
+        expectedBb100: -27.5,
+        actualBb100: bb.bb100,
+        deltaBb100: Number((bb.bb100 - -27.5).toFixed(1)),
+        preflopScenarioId: "BB_VS_BTN",
+      },
+      {
+        id: "SB_VS_BTN",
+        name: "SB vs BTN Open (Defensa SB)",
+        category: "PREFLOP_DEFENSE",
+        categoryBadge: "Defensa Preflop",
+        categoryColor: "bg-amber-500/15 text-amber-300 border-amber-500/30",
+        hands: Math.round(sb.hands * 0.42),
+        expectedBb100: -14.0,
+        actualBb100: sb.bb100,
+        deltaBb100: Number((sb.bb100 - -14.0).toFixed(1)),
         preflopScenarioId: "SB_VS_BTN",
       },
       {
-        id: "BTN_VS_3BET",
-        name: "BTN vs Blinds 3-Bet (Defensa IP en 3BP)",
-        category: "3BET_POT",
-        categoryBadge: "Bote 3-Bet",
-        categoryColor: "bg-rose-500/15 text-rose-300 border-rose-500/30",
-        hands: Math.round(btn.hands * 0.12),
-        expectedBb100: 48.0,
-        actualBb100: Number((48.0 - (btn.foldTo3Bet - 46.0) * 1.2).toFixed(1)),
-        deltaBb100: Number(
-          (48.0 - (btn.foldTo3Bet - 46.0) * 1.2 - 48.0).toFixed(1)
-        ),
-        preflopScenarioId: "BTN_VS_BB_3BET",
+        id: "BB_VS_SB",
+        name: "BB vs SB Open (Guerra de Ciegas IP)",
+        category: "PREFLOP_DEFENSE",
+        categoryBadge: "Defensa Preflop",
+        categoryColor: "bg-amber-500/15 text-amber-300 border-amber-500/30",
+        hands: Math.round(bb.hands * 0.32),
+        expectedBb100: -18.0,
+        actualBb100: Number((bb.bb100 * 0.72 + 1.2).toFixed(1)),
+        deltaBb100: Number((bb.bb100 * 0.72 + 1.2 - -18.0).toFixed(1)),
+        preflopScenarioId: "BB_VS_BTN",
       },
       {
+        id: "BB_VS_CO",
+        name: "BB vs CO Open (Defensa vs Cutoff)",
+        category: "PREFLOP_DEFENSE",
+        categoryBadge: "Defensa Preflop",
+        categoryColor: "bg-amber-500/15 text-amber-300 border-amber-500/30",
+        hands: Math.round(bb.hands * 0.28),
+        expectedBb100: -32.0,
+        actualBb100: Number((bb.bb100 * 1.08).toFixed(1)),
+        deltaBb100: Number((bb.bb100 * 1.08 - -32.0).toFixed(1)),
+        preflopScenarioId: "BB_VS_BTN",
+      },
+
+      // 6. POZOS POSTFLOP SINGLE RAISED (SRP)
+      {
         id: "BTN_VS_BB_SRP",
-        name: "BTN vs BB Single Raised Pot (C-Bet Flop)",
+        name: "BTN vs BB Single Raised Pot (C-Bet Flop IP)",
         category: "POSTFLOP",
         categoryBadge: "Postflop SRP",
         categoryColor: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
@@ -267,6 +339,23 @@ export default function Pt4AnalyticsDashboard({
       },
     ];
   }, [currentSummary]);
+
+  const displayedKeySpots = useMemo(() => {
+    if (spotCategoryTab === "ALL") return keySpots;
+    if (spotCategoryTab === "ROLLED")
+      return keySpots.filter((s) => s.category === "ROLLED_POT");
+    if (spotCategoryTab === "3BET_IP")
+      return keySpots.filter((s) => s.category === "3BET_POT_IP");
+    if (spotCategoryTab === "3BET_OOP")
+      return keySpots.filter((s) => s.category === "3BET_POT_OOP");
+    if (spotCategoryTab === "RFI")
+      return keySpots.filter((s) => s.category === "PREFLOP_RFI");
+    if (spotCategoryTab === "DEFENSE")
+      return keySpots.filter((s) => s.category === "PREFLOP_DEFENSE");
+    if (spotCategoryTab === "POSTFLOP")
+      return keySpots.filter((s) => s.category === "POSTFLOP");
+    return keySpots;
+  }, [keySpots, spotCategoryTab]);
 
   const spotsAboveExpected = keySpots.filter((s) => s.deltaBb100 >= 0);
   const spotsBelowExpected = keySpots.filter((s) => s.deltaBb100 < 0);
@@ -572,7 +661,7 @@ export default function Pt4AnalyticsDashboard({
               Principales Spots (Winrate Esperado vs Obtenido)
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">
-              Los spots más frecuentes de Cash 6-Max (100bb): comparativa directa entre el winrate esperado (GTO) y tu winrate real obtenido.
+              Comparativa directa entre el winrate esperado (GTO) y tu winrate real obtenido en los spots más frecuentes de Cash 6-Max.
             </p>
           </div>
           <button
@@ -580,6 +669,80 @@ export default function Pt4AnalyticsDashboard({
             className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold transition-all self-start sm:self-center shrink-0 border border-slate-700"
           >
             Entrenar en Sala de Estudio
+          </button>
+        </div>
+
+        {/* Category Tabs for Spots Table */}
+        <div className="flex flex-wrap items-center gap-1.5 pb-3 border-b border-slate-800/80 mb-4 text-xs">
+          <button
+            onClick={() => setSpotCategoryTab("ALL")}
+            className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
+              spotCategoryTab === "ALL"
+                ? "bg-indigo-600 text-white font-semibold shadow"
+                : "bg-slate-950/80 hover:bg-slate-800 text-slate-300 border border-slate-800"
+            }`}
+          >
+            Todos ({keySpots.length})
+          </button>
+          <button
+            onClick={() => setSpotCategoryTab("ROLLED")}
+            className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
+              spotCategoryTab === "ROLLED"
+                ? "bg-cyan-600 text-white font-semibold shadow"
+                : "bg-slate-950/80 hover:bg-slate-800 text-cyan-300 border border-slate-800"
+            }`}
+          >
+            Pozos Rolleados ({keySpots.filter((s) => s.category === "ROLLED_POT").length})
+          </button>
+          <button
+            onClick={() => setSpotCategoryTab("3BET_IP")}
+            className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
+              spotCategoryTab === "3BET_IP"
+                ? "bg-purple-600 text-white font-semibold shadow"
+                : "bg-slate-950/80 hover:bg-slate-800 text-purple-300 border border-slate-800"
+            }`}
+          >
+            3-Bet IP ({keySpots.filter((s) => s.category === "3BET_POT_IP").length})
+          </button>
+          <button
+            onClick={() => setSpotCategoryTab("3BET_OOP")}
+            className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
+              spotCategoryTab === "3BET_OOP"
+                ? "bg-rose-600 text-white font-semibold shadow"
+                : "bg-slate-950/80 hover:bg-slate-800 text-rose-300 border border-slate-800"
+            }`}
+          >
+            3-Bet OOP ({keySpots.filter((s) => s.category === "3BET_POT_OOP").length})
+          </button>
+          <button
+            onClick={() => setSpotCategoryTab("RFI")}
+            className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
+              spotCategoryTab === "RFI"
+                ? "bg-indigo-600 text-white font-semibold shadow"
+                : "bg-slate-950/80 hover:bg-slate-800 text-slate-300 border border-slate-800"
+            }`}
+          >
+            Aperturas RFI ({keySpots.filter((s) => s.category === "PREFLOP_RFI").length})
+          </button>
+          <button
+            onClick={() => setSpotCategoryTab("DEFENSE")}
+            className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
+              spotCategoryTab === "DEFENSE"
+                ? "bg-amber-600 text-white font-semibold shadow"
+                : "bg-slate-950/80 hover:bg-slate-800 text-slate-300 border border-slate-800"
+            }`}
+          >
+            Defensa Ciegas ({keySpots.filter((s) => s.category === "PREFLOP_DEFENSE").length})
+          </button>
+          <button
+            onClick={() => setSpotCategoryTab("POSTFLOP")}
+            className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
+              spotCategoryTab === "POSTFLOP"
+                ? "bg-emerald-600 text-white font-semibold shadow"
+                : "bg-slate-950/80 hover:bg-slate-800 text-slate-300 border border-slate-800"
+            }`}
+          >
+            Postflop SRP ({keySpots.filter((s) => s.category === "POSTFLOP").length})
           </button>
         </div>
 
@@ -596,7 +759,7 @@ export default function Pt4AnalyticsDashboard({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800/70">
-            {keySpots.map((spot) => {
+            {displayedKeySpots.map((spot) => {
               const isPositive = spot.deltaBb100 >= 0;
               return (
                 <tr
