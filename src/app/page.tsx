@@ -15,17 +15,15 @@ import PostflopExplorer from "@/components/PostflopExplorer";
 import Pt4AnalyticsDashboard from "@/components/Pt4AnalyticsDashboard";
 import StudyRoomTrainer from "@/components/StudyRoomTrainer";
 import WarmupRoutine from "@/components/WarmupRoutine";
-import MarkedHands from "@/components/MarkedHands";
-import OddsCalculator from "@/components/OddsCalculator";
+import HandAnalysisLab from "@/components/HandAnalysisLab";
 import SessionCooldown from "@/components/SessionCooldown";
 import BankrollTracker from "@/components/BankrollTracker";
 import ExploitGuide from "@/components/ExploitGuide";
 import Pt4ConnectionModal from "@/components/Pt4ConnectionModal";
 import {
   Timer,
-  BookmarkPlus,
-  Calculator,
   Coffee,
+  FileSearch,
   BarChart3,
   Grid,
   Compass,
@@ -40,9 +38,8 @@ import {
 
 type MainTab =
   | "WARMUP"
-  | "MARKED_HANDS"
-  | "ODDS_CALC"
   | "COOLDOWN"
+  | "HAND_ANALYSIS"
   | "PT4_LEAKS"
   | "PREFLOP"
   | "POSTFLOP"
@@ -139,7 +136,6 @@ export default function HomePage() {
         <div>
           <div className="p-4 border-b border-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              {/* Logo icon */}
               <svg width="34" height="34" viewBox="0 0 40 40" aria-label="IST Coach" className="shrink-0">
                 <defs>
                   <mask id="istMoonMask">
@@ -190,30 +186,6 @@ export default function HomePage() {
               </button>
 
               <button
-                onClick={() => selectTab("MARKED_HANDS")}
-                className={`w-full px-3 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-2.5 ${
-                  activeTab === "MARKED_HANDS"
-                    ? "bg-slate-800 text-white font-semibold"
-                    : "text-slate-400 hover:text-white hover:bg-slate-900"
-                }`}
-              >
-                <BookmarkPlus className="w-4 h-4 text-rose-400 shrink-0" />
-                <span>Manos Marcadas</span>
-              </button>
-
-              <button
-                onClick={() => selectTab("ODDS_CALC")}
-                className={`w-full px-3 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-2.5 ${
-                  activeTab === "ODDS_CALC"
-                    ? "bg-slate-800 text-white font-semibold"
-                    : "text-slate-400 hover:text-white hover:bg-slate-900"
-                }`}
-              >
-                <Calculator className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>Calculadora Live</span>
-              </button>
-
-              <button
                 onClick={() => selectTab("COOLDOWN")}
                 className={`w-full px-3 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-2.5 ${
                   activeTab === "COOLDOWN"
@@ -226,11 +198,23 @@ export default function HomePage() {
               </button>
             </div>
 
-            {/* Grupo 2: Estrategia & Datos */}
+            {/* Grupo 2: Estudio & Datos */}
             <div className="space-y-1">
               <span className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                Estrategia & Datos
+                Estudio & Datos
               </span>
+
+              <button
+                onClick={() => selectTab("HAND_ANALYSIS")}
+                className={`w-full px-3 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-2.5 ${
+                  activeTab === "HAND_ANALYSIS"
+                    ? "bg-slate-800 text-white font-semibold"
+                    : "text-slate-400 hover:text-white hover:bg-slate-900"
+                }`}
+              >
+                <FileSearch className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>Laboratorio de Manos</span>
+              </button>
 
               <button
                 onClick={() => selectTab("PT4_LEAKS")}
@@ -358,11 +342,9 @@ export default function HomePage() {
             />
           )}
 
-          {activeTab === "MARKED_HANDS" && <MarkedHands />}
-
-          {activeTab === "ODDS_CALC" && <OddsCalculator />}
-
           {activeTab === "COOLDOWN" && <SessionCooldown />}
+
+          {activeTab === "HAND_ANALYSIS" && <HandAnalysisLab />}
 
           {activeTab === "PT4_LEAKS" && (
             <Pt4AnalyticsDashboard
