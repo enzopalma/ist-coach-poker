@@ -297,7 +297,12 @@ export default function HomePage() {
           />
         )}
 
-        {activeTab === "WARMUP" && <WarmupRoutine />}
+        {activeTab === "WARMUP" && (
+          <WarmupRoutine
+            dbSummary={dbSummary}
+            onOpenDbModal={() => setIsDbModalOpen(true)}
+          />
+        )}
 
         {activeTab === "STUDY_ROOM" && <StudyRoomTrainer />}
       </main>
