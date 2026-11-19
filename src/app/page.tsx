@@ -59,12 +59,72 @@ export default function HomePage() {
   const [dbSummary, setDbSummary] = useState<Pt4DatabaseSummary>(DEMO_PT4_DATABASE);
   const [isDbModalOpen, setIsDbModalOpen] = useState(false);
 
+  // Sincronización en vivo PT4
+  const [isLiveActive, setIsLiveActive] = useState(false);
+  const [lastLiveSyncTime, setLastLiveSyncTime] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
   // Rangos importados por el usuario
   const [overrides, setOverrides] = useState<Record<string, RangeOverride>>({});
   const [isImportOpen, setIsImportOpen] = useState(false);
 
+  function handleSelectDatabase(newDb: Pt4DatabaseSummary) {
+    setDbSummary(newDb);
+    try {
+      localStorage.setItem("ist-coach-current-db", JSON.stringify(newDb));
+    } catch {}
+  }
+
+  async function refreshLiveStats() {
+    try {
+      setIsRefreshing(true);
+      const cfgStr = localStorage.getItem("ist-coach-pt4-config");
+      const cfg = cfgStr
+        ? JSON.parse(cfgStr)
+        : {
+            host: "localhost",
+            port: 5432,
+            database: "PT4 DB",
+            user: "postgres",
+            password: "dbpass",
+            playerName: "",
+          };
+
+      const res = await fetch("/api/pt4", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...cfg,
+          action: "fetch_stats",
+        }),
+      });
+      const data = await res.json();
+      if (data.ok && data.summary) {
+        handleSelectDatabase(data.summary);
+        const now = new Date();
+        setLastLiveSyncTime(
+          now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+        );
+      }
+    } catch {
+      // Ignorar fallo de red en live polling
+    } finally {
+      setIsRefreshing(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!isLiveActive) return;
+    refreshLiveStats();
+    const interval = setInterval(refreshLiveStats, 5000);
+    return () => clearInterval(interval);
+  }, [isLiveActive]);
+
   useEffect(() => {
     try {
+      const savedDb = localStorage.getItem("ist-coach-current-db");
+      if (savedDb) setDbSummary(JSON.parse(savedDb));
+
       const saved = localStorage.getItem(OVERRIDES_KEY);
       if (saved) setOverrides(JSON.parse(saved));
       const last = localStorage.getItem("ist-coach-last-spot");
@@ -353,6 +413,11 @@ export default function HomePage() {
               onOpenPostflopSpot={handleJumpToPostflopSpot}
               onOpenStudyRoom={() => setActiveTab("STUDY_ROOM")}
               onOpenDbModal={() => setIsDbModalOpen(true)}
+              isLiveActive={isLiveActive}
+              onToggleLive={() => setIsLiveActive((prev) => !prev)}
+              lastLiveSyncTime={lastLiveSyncTime}
+              onManualRefresh={refreshLiveStats}
+              isRefreshing={isRefreshing}
             />
           )}
 
@@ -448,7 +513,7 @@ export default function HomePage() {
         isOpen={isDbModalOpen}
         onClose={() => setIsDbModalOpen(false)}
         currentDb={dbSummary}
-        onSelectDatabase={(newDb) => setDbSummary(newDb)}
+        onSelectDatabase={handleSelectDatabase}
       />
     </div>
   );

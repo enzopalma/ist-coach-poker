@@ -30,17 +30,32 @@ export default function Pt4ConnectionModal({
   currentDb,
   onSelectDatabase,
 }: Pt4ConnectionModalProps) {
-  const [tab, setTab] = useState<ConnectionTab>("CLOUD_UPLOAD");
-  const [host, setHost] = useState("db.tu-servidor-cloud.supabase.co");
+  const [tab, setTab] = useState<ConnectionTab>("REMOTE_DB");
+  const [host, setHost] = useState("localhost");
   const [port, setPort] = useState("5432");
-  const [database, setDatabase] = useState("PT4_Cloud_DB");
+  const [database, setDatabase] = useState("PT4 DB");
   const [user, setUser] = useState("postgres");
-  const [password, setPassword] = useState("");
-  const [playerName, setPlayerName] = useState("Hero_Online");
+  const [password, setPassword] = useState("dbpass");
+  const [playerName, setPlayerName] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [csvSuccessMsg, setCsvSuccessMsg] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    try {
+      const saved = localStorage.getItem("ist-coach-pt4-config");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.host) setHost(parsed.host);
+        if (parsed.port) setPort(String(parsed.port));
+        if (parsed.database) setDatabase(parsed.database);
+        if (parsed.user) setUser(parsed.user);
+        if (parsed.password) setPassword(parsed.password);
+        if (parsed.playerName) setPlayerName(parsed.playerName);
+      }
+    } catch {}
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -66,7 +81,21 @@ export default function Pt4ConnectionModal({
           return;
         }
 
-        // Parse PT4 Position Report CSV (or flexible columns: Position, Hands, VPIP, PFR, RFI, 3Bet, Fold to 3Bet, Cold Call, CBet F, CBet T, WTSD, W$SD, WWSF, bb/100)
+        // Soporte para JSON (ej: generado por pt4-sync-agent.mjs)
+        if (text.trim().startsWith("{")) {
+          try {
+            const parsedJson = JSON.parse(text);
+            if (parsedJson.positions) {
+              onSelectDatabase(parsedJson);
+              setCsvSuccessMsg(`¡Archivo JSON "${file.name}" cargado exitosamente!`);
+              return;
+            }
+          } catch {
+            // Continúa intentando como texto tabular/CSV
+          }
+        }
+
+        // Parse PT4 Position Report CSV/TXT (delimitado por coma, punto y coma o tabulación)
         const cloned: Pt4DatabaseSummary = JSON.parse(
           JSON.stringify(DEMO_PT4_DATABASE)
         );
@@ -78,8 +107,10 @@ export default function Pt4ConnectionModal({
         let totalHandsCount = 0;
 
         for (let i = 1; i < lines.length; i++) {
+          // Detectar separador común: tabulación, punto y coma o coma
+          const delimiter = lines[i].includes("\t") ? "\t" : lines[i].includes(";") ? ";" : ",";
           const cols = lines[i]
-            .split(/[,;]/)
+            .split(delimiter)
             .map((c) => c.replace(/["'%$]/g, "").trim());
           if (cols.length < 4) continue;
 
@@ -150,6 +181,19 @@ export default function Pt4ConnectionModal({
       if (!data.ok) {
         setErrorMsg(data.error || "No se pudo conectar al servidor remoto PT4");
       } else if (data.summary) {
+        try {
+          localStorage.setItem(
+            "ist-coach-pt4-config",
+            JSON.stringify({
+              host,
+              port: Number(port),
+              database,
+              user,
+              password,
+              playerName,
+            })
+          );
+        } catch {}
         onSelectDatabase(data.summary);
         onClose();
       }
@@ -230,21 +274,19 @@ export default function Pt4ConnectionModal({
             <div className="p-5 rounded-xl border-2 border-dashed border-slate-700 hover:border-indigo-500 bg-slate-950/60 text-center transition-all">
               <FileSpreadsheet className="w-9 h-9 text-indigo-400 mx-auto mb-2" />
               <h4 className="text-sm font-medium text-white mb-1">
-                Sube tu Reporte por Posición de PokerTracker 4 (.csv)
+                Sube tu Reporte o Base de Datos (.txt, .csv, .json)
               </h4>
               <p className="text-xs text-slate-400 max-w-md mx-auto mb-4">
-                En PokerTracker 4 ve a{" "}
-                <strong className="text-slate-200">
-                  Statistics → Position → Clic derecho → Export to CSV
-                </strong>{" "}
-                y súbelo aquí para analizar tus spots desde cualquier navegador en red.
+                Puedes subir el reporte exportado de PokerTracker 4 / Hold&apos;em Manager en formato{" "}
+                <strong className="text-slate-200">.txt o .csv</strong>, o el archivo de sincronización{" "}
+                <strong className="text-slate-200">mi_pt4_cloud.json</strong>.
               </p>
               <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-medium cursor-pointer">
                 <Upload className="w-4 h-4" />
-                <span>Seleccionar Archivo CSV de PT4</span>
+                <span>Seleccionar Archivo (.txt / .csv / .json)</span>
                 <input
                   type="file"
-                  accept=".csv,.txt"
+                  accept=".csv,.txt,.json"
                   onChange={handleCsvFileUpload}
                   className="hidden"
                 />

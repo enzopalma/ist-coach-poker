@@ -21,6 +21,8 @@ import {
   Sparkles,
   ChevronDown,
   Filter,
+  Radio,
+  RefreshCw,
 } from "lucide-react";
 
 interface Pt4AnalyticsDashboardProps {
@@ -29,6 +31,11 @@ interface Pt4AnalyticsDashboardProps {
   onOpenPostflopSpot: (spotId: string) => void;
   onOpenStudyRoom: () => void;
   onOpenDbModal: () => void;
+  isLiveActive?: boolean;
+  onToggleLive?: () => void;
+  lastLiveSyncTime?: string | null;
+  onManualRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
 interface KeySpotMetric {
@@ -57,6 +64,11 @@ export default function Pt4AnalyticsDashboard({
   onOpenPostflopSpot,
   onOpenStudyRoom,
   onOpenDbModal,
+  isLiveActive = false,
+  onToggleLive,
+  lastLiveSyncTime,
+  onManualRefresh,
+  isRefreshing = false,
 }: Pt4AnalyticsDashboardProps) {
   // Filtro de muestra (Hoy, Ayer, Últimos 7 dias, Últimos 30 dias, Este año, Desde - Hasta)
   const [filterState, setFilterState] = useState<SampleFilterState>({
@@ -430,17 +442,51 @@ export default function Pt4AnalyticsDashboard({
             )}
           </div>
 
-          {/* Indicador de muestra activa */}
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-slate-400">Muestra evaluada:</span>
-            <span className="font-semibold text-white px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800">
-              {currentSummary.totalHands.toLocaleString()} manos
-              {comparison.isFiltered && (
-                <span className="text-emerald-400 font-bold ml-1.5">
-                  ({comparison.handsRatioPct}%)
-                </span>
-              )}
-            </span>
+          {/* Indicador de muestra activa y Modo En Vivo */}
+          <div className="flex flex-wrap items-center gap-2.5 text-xs">
+            {onToggleLive && (
+              <button
+                type="button"
+                onClick={onToggleLive}
+                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                  isLiveActive
+                    ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300 shadow-sm shadow-emerald-500/20"
+                    : "bg-slate-800/90 hover:bg-slate-700/90 border-slate-700 text-slate-300 hover:text-white"
+                }`}
+                title={
+                  isLiveActive
+                    ? "Modo en vivo activado (sincronizando con PT4 cada 5s)"
+                    : "Activar sincronización en vivo mientras juegas en PokerStars"
+                }
+              >
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    isLiveActive ? "bg-emerald-400 animate-pulse" : "bg-slate-500"
+                  }`}
+                />
+                <span>{isLiveActive ? "● En Vivo (PT4)" : "Activar En Vivo"}</span>
+                {isRefreshing && (
+                  <RefreshCw className="w-3 h-3 text-emerald-400 animate-spin" />
+                )}
+              </button>
+            )}
+
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400 hidden sm:inline">Muestra:</span>
+              <span className="font-semibold text-white px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800">
+                {currentSummary.totalHands.toLocaleString()} manos
+                {comparison.isFiltered && (
+                  <span className="text-emerald-400 font-bold ml-1.5">
+                    ({comparison.handsRatioPct}%)
+                  </span>
+                )}
+              </span>
+            </div>
+            {lastLiveSyncTime && (
+              <span className="text-[10px] text-emerald-400/80 bg-emerald-950/40 border border-emerald-800/40 px-2 py-0.5 rounded-md">
+                Sync {lastLiveSyncTime}
+              </span>
+            )}
           </div>
         </div>
 

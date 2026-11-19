@@ -171,7 +171,7 @@ export async function POST(req: NextRequest) {
         COUNT(s.id_hand) AS hands,
         SUM(CASE WHEN s.flg_vpip THEN 1 ELSE 0 END) AS vpip_cnt,
         SUM(CASE WHEN s.flg_pfr THEN 1 ELSE 0 END) AS pfr_cnt,
-        SUM(CASE WHEN s.flg_pfr_open THEN 1 ELSE 0 END) AS rfi_cnt,
+        SUM(CASE WHEN s.flg_p_first_raise THEN 1 ELSE 0 END) AS rfi_cnt,
         SUM(CASE WHEN s.flg_p_3bet THEN 1 ELSE 0 END) AS threebet_cnt,
         SUM(CASE WHEN s.flg_p_3bet_opp THEN 1 ELSE 0 END) AS threebet_opp,
         SUM(CASE WHEN s.flg_p_3bet_def_opp THEN 1 ELSE 0 END) AS fold_3bet_opp,
@@ -187,7 +187,7 @@ export async function POST(req: NextRequest) {
         SUM(CASE WHEN s.flg_f_saw AND s.flg_won_hand THEN 1 ELSE 0 END) AS wwsf_cnt,
         SUM(s.amt_won) AS net_won,
         SUM(CASE WHEN l.amt_bb > 0 THEN (s.amt_won / l.amt_bb) ELSE 0 END) AS total_bb_won,
-        SUM(CASE WHEN l.amt_bb > 0 THEN ((s.amt_won + COALESCE(s.amt_allin_ev_diff, 0)) / l.amt_bb) ELSE 0 END) AS total_ev_bb_won
+        SUM(CASE WHEN l.amt_bb > 0 THEN (COALESCE(s.amt_expected_won, s.amt_won) / l.amt_bb) ELSE 0 END) AS total_ev_bb_won
       FROM cash_hand_player_statistics s
       LEFT JOIN cash_limit l ON s.id_limit = l.id_limit
       WHERE s.id_player = $1 ${dateFilterClause}

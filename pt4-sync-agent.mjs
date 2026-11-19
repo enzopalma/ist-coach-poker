@@ -123,7 +123,7 @@ async function syncPt4ToCloudFile() {
         COUNT(s.id_hand) AS hands,
         SUM(CASE WHEN s.flg_vpip THEN 1 ELSE 0 END) AS vpip_cnt,
         SUM(CASE WHEN s.flg_pfr THEN 1 ELSE 0 END) AS pfr_cnt,
-        SUM(CASE WHEN s.flg_pfr_open THEN 1 ELSE 0 END) AS rfi_cnt,
+        SUM(CASE WHEN s.flg_p_first_raise THEN 1 ELSE 0 END) AS rfi_cnt,
         SUM(CASE WHEN s.flg_p_3bet THEN 1 ELSE 0 END) AS threebet_cnt,
         SUM(CASE WHEN s.flg_p_3bet_opp THEN 1 ELSE 0 END) AS threebet_opp,
         SUM(CASE WHEN s.flg_p_ccall THEN 1 ELSE 0 END) AS ccall_cnt,

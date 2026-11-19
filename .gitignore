@@ -6,5 +6,6 @@ out/
 .vercel/
 .netlify/
 *.log
+tsconfig.tsbuildinfo
 
 .vercel
