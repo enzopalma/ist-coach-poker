@@ -9,6 +9,13 @@ echo         IST COACH - ASISTENTE DE POKER EN TIEMPO REAL
 echo ============================================================
 echo.
 
+:: 0. Auto-actualizar desde GitHub si git esta disponible
+where git >nul 2>nul
+if %errorlevel% equ 0 (
+    echo [0/3] Buscando actualizaciones en GitHub...
+    git pull origin main >nul 2>nul
+)
+
 where node >nul 2>nul
 if %errorlevel% neq 0 (
     echo [ERROR] No se encontro Node.js en esta computadora.
