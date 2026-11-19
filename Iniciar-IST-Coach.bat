@@ -9,7 +9,10 @@ echo         IST COACH - ASISTENTE DE POKER EN TIEMPO REAL
 echo ============================================================
 echo.
 
-:: 0. Auto-actualizar desde GitHub si git esta disponible
+:: 0. Cerrar instancias previas de node que hayan quedado colgadas
+taskkill /F /IM node.exe >nul 2>nul
+
+:: 1. Auto-actualizar desde GitHub si git esta disponible
 where git >nul 2>nul
 if %errorlevel% equ 0 (
     echo [0/3] Buscando actualizaciones en GitHub...
@@ -38,7 +41,7 @@ if exist "%USERPROFILE%\OneDrive\Desktop" set "DESK_PATH=%USERPROFILE%\OneDrive\
 powershell -NoProfile -ExecutionPolicy Bypass -Command " = New-Object -ComObject WScript.Shell;  = .CreateShortcut('%DESK_PATH%\IST Coach.lnk'); .TargetPath = '%~f0'; .WorkingDirectory = '%~dp0'; .IconLocation = 'shell32.dll,14'; .Save()" >nul 2>&1
 
 echo [3/3] Abriendo navegador en http://localhost:3000
-start "" powershell -NoProfile -Command "Start-Sleep -Seconds 3; Start-Process 'http://localhost:3000'"
+start "" powershell -NoProfile -Command "Start-Sleep -Seconds 4; Start-Process 'http://localhost:3000'"
 
 echo.
 echo ============================================================
